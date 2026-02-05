@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, jsonb, boolean, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, decimal, jsonb, boolean, timestamp, pgEnum } from 'drizzle-orm/pg-core';
 import { campaigns } from './campaigns';
 import { audiences } from './audiences';
 
@@ -16,5 +16,10 @@ export const creatives = pgTable('creatives', {
   contentUrl: text('content_url'),
   thumbnailUrl: text('thumbnail_url'),
   aiGenerated: boolean('ai_generated').default(true).notNull(),
+  businessGoal: varchar('business_goal', { length: 50 }),
+  targetPersonaId: uuid('target_persona_id').references(() => audiences.id),
+  predictionScore: decimal('prediction_score', { precision: 5, scale: 2 }),
+  aiReasoning: text('ai_reasoning'),
+  impactMetrics: jsonb('impact_metrics'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

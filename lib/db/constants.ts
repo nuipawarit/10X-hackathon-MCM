@@ -4,8 +4,10 @@ export const PLATFORM_COLORS: Record<string, { color: string; logo: string; disp
   instagram: { color: '#E1306C', logo: 'IG', displayName: 'Instagram' },
   facebook: { color: '#1877F2', logo: 'FB', displayName: 'Facebook' },
   meta: { color: '#1877F2', logo: 'FB', displayName: 'Meta' },
-  google: { color: '#4285F4', logo: 'G', displayName: 'Google' },
-  line: { color: '#00B900', logo: 'LN', displayName: 'LINE' },
+  google: { color: '#EA4335', logo: 'G', displayName: 'Google Ads' },
+  line: { color: '#00C300', logo: 'LN', displayName: 'LINE LAP' },
+  shopee: { color: '#EE4D2D', logo: 'SH', displayName: 'Shopee' },
+  lazada: { color: '#0F146D', logo: 'LZ', displayName: 'Lazada' },
 };
 
 export const PERSONA_ICON_CONFIGS = [

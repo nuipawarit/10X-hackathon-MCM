@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, decimal, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, decimal, boolean, jsonb, text, timestamp, pgEnum } from 'drizzle-orm/pg-core';
 import { campaigns } from './campaigns';
 import { creatives } from './creatives';
 
@@ -13,6 +13,10 @@ export const deployments = pgTable('deployments', {
   status: deploymentStatusEnum('status').default('pending').notNull(),
   estimatedReach: varchar('estimated_reach', { length: 50 }),
   externalId: varchar('external_id', { length: 255 }),
+  aiRecommendedPlatforms: jsonb('ai_recommended_platforms'),
+  confidenceScore: decimal('confidence_score', { precision: 5, scale: 2 }),
+  recommendationReason: text('recommendation_reason'),
+  userOverride: boolean('user_override').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

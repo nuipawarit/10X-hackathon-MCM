@@ -5,7 +5,11 @@
       "Bash(npx tsc:*)",
       "Bash(pnpm build:*)",
       "Bash(npx next build:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npx drizzle-kit push:*)",
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)"
     ]
   }
 }

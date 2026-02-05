@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { campaigns, analytics, audiences, creatives, deployments, optimizationLogs } from '@/lib/db/schema';
-import { eq, sql, asc, desc } from 'drizzle-orm';
+import { eq, sql, asc, desc, inArray } from 'drizzle-orm';
 import { PLATFORM_COLORS, getPersonaIconConfig, getCreativeImage, parseReach, formatReach } from './constants';
 
 // ─── Shared ───
@@ -15,7 +15,123 @@ export async function getActiveCampaign() {
   return campaign ?? null;
 }
 
-// ─── Dashboard ───
+// ─── Dashboard v2 ───
+
+export async function getCrossPlatformKPIs(campaignId: string) {
+  const rows = await db
+    .select({
+      totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+      totalRevenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+      totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+    })
+    .from(analytics)
+    .where(eq(analytics.campaignId, campaignId));
+
+  const m = rows[0];
+  const spend = Number(m.totalSpend);
+  const revenue = Number(m.totalRevenue);
+  const conversions = Number(m.totalConversions);
+  const roas = spend > 0 ? revenue / spend : 0;
+
+  return {
+    totalSpend: spend,
+    totalRevenue: revenue,
+    overallRoas: Math.round(roas * 10) / 10,
+    totalConversions: conversions,
+  };
+}
+
+export async function getDailyPlatformBreakdown(campaignId: string) {
+  const rows = await db
+    .select({
+      date: analytics.date,
+      platform: analytics.platform,
+      spend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+      revenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+    })
+    .from(analytics)
+    .where(eq(analytics.campaignId, campaignId))
+    .groupBy(analytics.date, analytics.platform)
+    .orderBy(asc(analytics.date));
+
+  const dayMap = new Map<string, Record<string, number>>();
+  for (const row of rows) {
+    if (!row.platform) continue;
+    const day = new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (!dayMap.has(day)) {
+      dayMap.set(day, { meta: 0, google: 0, tiktok: 0, line: 0, lemon8: 0, shopee: 0, lazada: 0, instagram: 0, facebook: 0, totalSpend: 0, totalRevenue: 0 });
+    }
+    const entry = dayMap.get(day)!;
+    const spend = Number(row.spend);
+    const revenue = Number(row.revenue);
+    entry[row.platform] = Math.round(spend);
+    entry.totalSpend += spend;
+    entry.totalRevenue += revenue;
+  }
+
+  return [...dayMap.entries()].map(([day, data]) => ({
+    day,
+    meta: data.meta,
+    google: data.google,
+    tiktok: data.tiktok,
+    line: data.line,
+    lemon8: data.lemon8,
+    shopee: data.shopee,
+    lazada: data.lazada,
+    instagram: data.instagram,
+    facebook: data.facebook,
+    roas: data.totalSpend > 0 ? Math.round((data.totalRevenue / data.totalSpend) * 10) / 10 : 0,
+  }));
+}
+
+export async function getDeploymentPerformanceV2(campaignId: string) {
+  const rows = await db
+    .select({
+      platform: analytics.platform,
+      totalImpressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
+      totalClicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
+      totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+      totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+      totalRevenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+    })
+    .from(analytics)
+    .where(eq(analytics.campaignId, campaignId))
+    .groupBy(analytics.platform);
+
+  return rows
+    .filter((r) => r.platform !== null)
+    .map((row) => {
+      const platform = row.platform!;
+      const platformInfo = PLATFORM_COLORS[platform] ?? { color: '#6B7280', logo: '??', displayName: platform };
+      const spend = Number(row.totalSpend);
+      const revenue = Number(row.totalRevenue);
+      const clicks = Number(row.totalClicks);
+      const impressions = Number(row.totalImpressions);
+      const conversions = Number(row.totalConversions);
+      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      const cpc = clicks > 0 ? spend / clicks : 0;
+      const cpa = conversions > 0 ? spend / conversions : 0;
+      const roas = spend > 0 ? revenue / spend : 0;
+
+      return {
+        platform: platformInfo.displayName,
+        platformKey: platform,
+        color: platformInfo.color,
+        logo: platformInfo.logo,
+        spend: `฿${Math.round(spend).toLocaleString()}`,
+        impressions: impressions.toLocaleString(),
+        clicks: clicks.toLocaleString(),
+        ctr: `${ctr.toFixed(1)}%`,
+        cpc: `฿${cpc.toFixed(2)}`,
+        conversions: conversions.toLocaleString(),
+        cpa: `฿${cpa.toFixed(2)}`,
+        roas: `${roas.toFixed(1)}x`,
+      };
+    })
+    .sort((a, b) => parseFloat(b.roas) - parseFloat(a.roas));
+}
+
+// ─── Dashboard (shared) ───
 
 export async function getCampaignTrend(campaignId: string) {
   const trend = await db
@@ -35,65 +151,6 @@ export async function getCampaignTrend(campaignId: string) {
       ? Math.round((Number(t.revenue) / Number(t.spend)) * 10) / 10
       : 0,
   }));
-}
-
-export async function getDeploymentPerformance(campaignId: string) {
-  const rows = await db
-    .select({
-      deploymentId: analytics.deploymentId,
-      platform: analytics.platform,
-      totalImpressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
-      totalClicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
-      totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
-      totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
-    })
-    .from(analytics)
-    .where(eq(analytics.campaignId, campaignId))
-    .groupBy(analytics.deploymentId, analytics.platform);
-
-  const deploymentRows = await db
-    .select({ id: deployments.id, creativeId: deployments.creativeId })
-    .from(deployments)
-    .where(eq(deployments.campaignId, campaignId));
-
-  const creativeRows = await db
-    .select({ id: creatives.id, prompt: creatives.prompt })
-    .from(creatives)
-    .where(eq(creatives.campaignId, campaignId));
-
-  const creativeMap = new Map(creativeRows.map((c) => [c.id, c]));
-  const deploymentMap = new Map(deploymentRows.map((d) => [d.id, d]));
-
-  return rows
-    .filter((r) => r.platform !== null)
-    .map((row, i) => {
-      const dep = row.deploymentId ? deploymentMap.get(row.deploymentId) : null;
-      const creative = dep?.creativeId ? creativeMap.get(dep.creativeId) : null;
-      const platform = row.platform!;
-      const platformInfo = PLATFORM_COLORS[platform] ?? { color: '#6B7280', displayName: platform };
-
-      const spend = Number(row.totalSpend);
-      const conversions = Number(row.totalConversions);
-      const impressions = Number(row.totalImpressions);
-      const clicks = Number(row.totalClicks);
-
-      const cpa = conversions > 0 ? spend / conversions : 0;
-      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-      const isHighPerf = cpa < 10;
-
-      return {
-        id: i + 1,
-        thumbnail: getCreativeImage(creative?.prompt ?? ''),
-        name: creative?.prompt ?? 'Campaign Creative',
-        platform: platformInfo.displayName,
-        platformColor: platformInfo.color,
-        status: isHighPerf ? 'High Performance' : 'Low Performance',
-        statusColor: isHighPerf ? '#00C853' : '#FF5252',
-        cpa: `$${cpa.toFixed(2)}`,
-        ctr: `${ctr.toFixed(1)}%`,
-        conversions,
-      };
-    });
 }
 
 export async function getAlertInfo(campaignId: string) {
@@ -134,32 +191,56 @@ interface Demographics { ageRange?: string; education?: string; lifestyle?: stri
 interface Psychographics { values?: string[]; painPoints?: string[]; motivations?: string[] }
 interface Behaviors { platforms?: string[]; interests?: string[]; purchaseTriggers?: string[] }
 
-export async function getCampaignPersonas(campaignId: string) {
+export async function getConsumerPersonas(campaignId: string) {
   const rows = await db
     .select()
     .from(audiences)
     .where(eq(audiences.campaignId, campaignId))
     .orderBy(desc(audiences.intentScore));
 
-  return rows.map((row, index) => {
-    const demo = (row.demographics as Demographics) ?? {};
-    const psycho = (row.psychographics as Psychographics) ?? {};
-    const behav = (row.behaviors as Behaviors) ?? {};
-    const config = getPersonaIconConfig(index);
+  return rows
+    .filter((row) => (row.segmentType ?? 'consumer') === 'consumer')
+    .map((row, index) => {
+      const demo = (row.demographics as Demographics) ?? {};
+      const psycho = (row.psychographics as Psychographics) ?? {};
+      const behav = (row.behaviors as Behaviors) ?? {};
+      const config = getPersonaIconConfig(index);
 
-    return {
+      return {
+        id: row.id,
+        title: row.name,
+        iconName: config.iconName,
+        iconBg: config.iconBg,
+        iconColor: config.iconColor,
+        tags: behav.interests?.slice(0, 3) ?? [],
+        intent: row.intentScore,
+        description: row.tagline ?? '',
+        demographics: [demo.ageRange, demo.education, demo.lifestyle].filter(Boolean).join(', '),
+        interests: [...(psycho.values ?? []), ...(psycho.motivations ?? [])].slice(0, 3),
+      };
+    });
+}
+
+export async function getLifecycleSegments(campaignId: string) {
+  const rows = await db
+    .select()
+    .from(audiences)
+    .where(eq(audiences.campaignId, campaignId))
+    .orderBy(desc(audiences.intentScore));
+
+  return rows
+    .filter((row) => row.segmentType === 'business')
+    .map((row) => ({
       id: row.id,
-      title: row.name,
-      iconName: config.iconName,
-      iconBg: config.iconBg,
-      iconColor: config.iconColor,
-      tags: behav.interests?.slice(0, 3) ?? [],
-      intent: row.intentScore,
-      description: row.tagline ?? '',
-      demographics: [demo.ageRange, demo.education, demo.lifestyle].filter(Boolean).join(', '),
-      interests: [...(psycho.values ?? []), ...(psycho.motivations ?? [])].slice(0, 3),
-    };
-  });
+      name: row.name,
+      tagline: row.tagline ?? '',
+      stage: row.lifecycleStage as 'new' | 'active' | 'vip' | 'at_risk',
+      customerCount: row.customerCount ?? 0,
+      avgOrderValue: Number(row.avgOrderValue ?? 0),
+      purchaseFrequency: Number(row.purchaseFrequency ?? 0),
+      intentScore: row.intentScore,
+      recommendedMessaging: row.recommendedMessaging ?? '',
+    }));
 }
 
 // ─── Creative ───
@@ -174,9 +255,7 @@ export async function getCampaignCreatives(campaignId: string) {
 
   const personaIds = [...new Set(creativeRows.map((c) => c.personaId).filter(Boolean))] as string[];
   const personaRows = personaIds.length > 0
-    ? await db.select().from(audiences).where(
-        sql`${audiences.id} IN ${sql.raw(`('${personaIds.join("','")}')`)}`,
-      )
+    ? await db.select().from(audiences).where(inArray(audiences.id, personaIds))
     : [];
 
   const personaMap = new Map(personaRows.map((p) => [p.id, p]));
@@ -242,22 +321,26 @@ export async function getCampaignDistribution(campaignId: string) {
 
   const creativeIds = [...new Set(depRows.map((d) => d.creativeId).filter(Boolean))] as string[];
   const creativeRows = creativeIds.length > 0
-    ? await db.select().from(creatives).where(
-        sql`${creatives.id} IN ${sql.raw(`('${creativeIds.join("','")}')`)}`,
-      )
+    ? await db.select().from(creatives).where(inArray(creatives.id, creativeIds))
     : [];
 
   const personaIds = [...new Set(creativeRows.map((c) => c.personaId).filter(Boolean))] as string[];
   const personaRows = personaIds.length > 0
-    ? await db.select().from(audiences).where(
-        sql`${audiences.id} IN ${sql.raw(`('${personaIds.join("','")}')`)}`,
-      )
+    ? await db.select().from(audiences).where(inArray(audiences.id, personaIds))
     : [];
 
   const creativeMap = new Map(creativeRows.map((c) => [c.id, c]));
   const personaMap = new Map(personaRows.map((p) => [p.id, p]));
 
-  const adSetMap = new Map<string, { personaName: string; creativeCount: number; totalBudget: number; iconIndex: number }>();
+  const adSetMap = new Map<string, {
+    personaName: string;
+    creativeCount: number;
+    totalBudget: number;
+    iconIndex: number;
+    aiRecommendedPlatforms: string[];
+    confidenceScore: number;
+    recommendationReason: string;
+  }>();
   const platformSet = new Map<string, { totalReach: number; totalBudget: number }>();
 
   let personaIndex = 0;
@@ -272,6 +355,9 @@ export async function getCampaignDistribution(campaignId: string) {
         creativeCount: 0,
         totalBudget: 0,
         iconIndex: personaIndex++,
+        aiRecommendedPlatforms: (dep.aiRecommendedPlatforms as string[]) ?? [],
+        confidenceScore: Number(dep.confidenceScore ?? 0),
+        recommendationReason: dep.recommendationReason ?? '',
       });
     }
     const adSet = adSetMap.get(personaId)!;
@@ -291,12 +377,15 @@ export async function getCampaignDistribution(campaignId: string) {
     const config = getPersonaIconConfig(v.iconIndex);
     return {
       id: v.iconIndex + 1,
-      name: `${v.personaName} Ads Set`,
+      name: `${v.personaName} Ad Set`,
       iconName: config.iconName,
       iconBg: config.iconBg,
       iconColor: config.iconColor,
       creatives: v.creativeCount,
-      budget: `$${v.totalBudget.toLocaleString()}`,
+      budget: `฿${v.totalBudget.toLocaleString()}`,
+      aiRecommendedPlatforms: v.aiRecommendedPlatforms,
+      confidenceScore: v.confidenceScore,
+      recommendationReason: v.recommendationReason,
     };
   });
 
@@ -306,11 +395,27 @@ export async function getCampaignDistribution(campaignId: string) {
     return {
       id: platformId++,
       name: info.displayName,
+      key: name,
       color: info.color,
       logo: info.logo,
       reach: formatReach(v.totalReach),
     };
   });
+
+  const allPlatformKeys = Object.keys(PLATFORM_COLORS);
+  for (const key of allPlatformKeys) {
+    if (!platformSet.has(key)) {
+      const info = PLATFORM_COLORS[key];
+      platforms.push({
+        id: platformId++,
+        name: info.displayName,
+        key,
+        color: info.color,
+        logo: info.logo,
+        reach: '0',
+      });
+    }
+  }
 
   const totalReach = [...platformSet.values()].reduce((sum, p) => sum + p.totalReach, 0);
   const totalBudget = depRows.reduce((sum, d) => sum + Number(d.budget), 0);
@@ -320,9 +425,9 @@ export async function getCampaignDistribution(campaignId: string) {
     platforms,
     summary: {
       totalAdSets: adSets.length,
-      totalPlatforms: platforms.length,
+      totalPlatforms: platformSet.size,
       estimatedReach: formatReach(totalReach),
-      totalBudget: `$${totalBudget.toLocaleString()}`,
+      totalBudget: `฿${totalBudget.toLocaleString()}`,
     },
   };
 }

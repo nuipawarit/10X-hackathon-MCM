@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { AlertBanner } from '@/components/dashboard/alert-banner';
-import { RoasChart } from '@/components/dashboard/roas-chart';
-import { PerformanceTable } from '@/components/dashboard/performance-table';
-import { getActiveCampaign, getCampaignTrend, getDeploymentPerformance, getAlertInfo } from '@/lib/db/queries';
+import { KPICards } from '@/components/dashboard/kpi-cards';
+import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { getActiveCampaign, getCrossPlatformKPIs, getDailyPlatformBreakdown, getDeploymentPerformanceV2, getAlertInfo } from '@/lib/db/queries';
 
 export default async function DashboardPage() {
   const campaign = await getActiveCampaign();
@@ -18,9 +18,10 @@ export default async function DashboardPage() {
     );
   }
 
-  const [chartData, performanceData, alert] = await Promise.all([
-    getCampaignTrend(campaign.id),
-    getDeploymentPerformance(campaign.id),
+  const [kpis, chartData, performanceData, alert] = await Promise.all([
+    getCrossPlatformKPIs(campaign.id),
+    getDailyPlatformBreakdown(campaign.id),
+    getDeploymentPerformanceV2(campaign.id),
     getAlertInfo(campaign.id),
   ]);
 
@@ -29,12 +30,21 @@ export default async function DashboardPage() {
       {alert && (
         <AlertBanner title={alert.title} description={alert.description} />
       )}
-      {chartData.length > 0 && (
-        <RoasChart data={chartData} changePercent={alert?.changePercent ?? '+0%'} />
-      )}
-      {performanceData.length > 0 && (
-        <PerformanceTable data={performanceData} />
-      )}
+
+      <div>
+        <h2 className="text-xl font-medium text-[#1A1A1A] mb-1">Cross-Platform Command Center</h2>
+        <p className="text-sm text-[#6B7280]">{campaign.name}</p>
+      </div>
+
+      <KPICards
+        totalSpend={kpis.totalSpend}
+        totalRevenue={kpis.totalRevenue}
+        overallRoas={kpis.overallRoas}
+        totalConversions={kpis.totalConversions}
+      />
+
+      <DashboardClient chartData={chartData} performanceData={performanceData} />
+
       <div className="flex justify-center pt-4">
         <Link
           href="/audience"

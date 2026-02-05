@@ -77,4 +77,9 @@
   --mcm-surface: #F4F6F8;
   --mcm-foreground: #1A1A1A;
   --mcm-muted: #6B7280;
+  --mcm-purple: #9C27B0;
+  --mcm-accent: #E8F1FF;
+  --mcm-accent-foreground: #0052CC;
+  --input-background: #F4F6F8;
+  --switch-background: #CBD5E1;
 }
