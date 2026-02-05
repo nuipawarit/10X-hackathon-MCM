@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Sparkles, ChevronDown, RefreshCw, ArrowRight, TrendingUp, Target, Zap, Check } from 'lucide-react';
-import { getCreativeImage } from '@/lib/db/constants';
 
 const businessGoals = [
   { id: 'vip', label: 'VIP Retention & Upsell', stage: 'Retain & Grow', tag: 'VIP', color: '#9C27B0' },
@@ -66,8 +65,6 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
     setIsRegenerating(true);
     setTimeout(() => setIsRegenerating(false), 2000);
   };
-
-  const allImages = creativeGroups.flatMap(g => g.images).slice(0, 2);
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -140,39 +137,137 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
       {/* Center Canvas */}
       <div className="col-span-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-[#1A1A1A]">Generated Creatives</h3>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={18} className="text-[#7B61FF]" />
+              <h3 className="text-lg font-semibold text-[#1A1A1A]">
+                Generated Assets (Business + Interest Fusion)
+              </h3>
+            </div>
+            <p className="text-xs text-[#6B7280]">
+              AI-crafted creatives optimized for {selectedGoal.label} targeting {selectedPersona.label}
+            </p>
+          </div>
           <button
             onClick={handleRegenerate}
             disabled={isRegenerating}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#0052CC] bg-[#E8F1FF] rounded-lg hover:bg-[#D0E3FF] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-black/[0.08] rounded-lg hover:border-[#7B61FF] hover:bg-[#7B61FF]/5 transition-all disabled:opacity-50"
           >
-            <RefreshCw size={14} className={isRegenerating ? 'animate-spin' : ''} />
-            {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+            <RefreshCw size={14} className={`text-[#7B61FF] ${isRegenerating ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-medium text-[#7B61FF]">
+              {isRegenerating ? 'Generating...' : 'Regenerate All'}
+            </span>
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {allImages.map((image) => (
-            <div key={image.id} className="group relative bg-white rounded-xl border border-black/[0.08] overflow-hidden hover:shadow-lg transition-all">
-              <img src={image.url} alt={image.title} className="w-full h-56 object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent">
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <p className="text-white text-sm font-medium">{image.title}</p>
+        <div className="grid grid-cols-2 gap-6">
+          {/* Card 1: Upsell Ad */}
+          <div className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
+            <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
+              <img
+                src="https://images.unsplash.com/photo-1758426637739-fcb6eea3f4d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwc3Vuc2NyZWVuJTIwYm90dGxlcyUyMHNjaWVudGlmaWMlMjBsYWJvcmF0b3J5fGVufDF8fHx8MTc3MDI3MDUxN3ww&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Premium VIP Bundle"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9C27B0] rounded-full">
+                    <Zap size={12} className="text-white" />
+                    <span className="text-xs font-semibold text-white">Optimized for Upsell</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white leading-tight">
+                    Exclusive VIP Bundle:<br />The Ultimate Protection Science
+                  </h3>
+                  <p className="text-sm text-white/90">Advanced SPF50+ PA++++ with Niacinamide Complex</p>
                 </div>
               </div>
-              <div className="absolute top-3 right-3">
-                <span className="px-2 py-1 bg-[#00C853] text-white text-xs rounded-full font-medium">AI Generated</span>
+              <button
+                onClick={handleRegenerate}
+                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
+              >
+                <RefreshCw size={18} className="text-[#7B61FF]" />
+              </button>
+            </div>
+            <div className="p-4 border-t border-black/[0.08]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">AI Optimization</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Check size={12} className="text-[#00C853]" />
+                      <span className="text-xs text-[#00C853] font-medium">Premium Imagery</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Check size={12} className="text-[#00C853]" />
+                      <span className="text-xs text-[#00C853] font-medium">Science Appeal</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-[#6B7280]">Predicted CTR</p>
+                  <p className="text-lg font-semibold text-[#7B61FF]">5.2%</p>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-
-        {allImages.length === 0 && (
-          <div className="bg-[#F4F6F8] rounded-xl p-12 text-center border-2 border-dashed border-black/[0.08]">
-            <Sparkles size={32} className="text-[#6B7280] mx-auto mb-3" />
-            <p className="text-[#6B7280]">Select a goal and persona, then generate creatives</p>
           </div>
-        )}
+
+          {/* Card 2: Loyalty Ad */}
+          <div className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
+            <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
+              <img
+                src="https://images.unsplash.com/photo-1532642431870-2cd545b1c86c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2luY2FyZSUyMHRleHR1cmUlMjBjbG9zZXVwJTIwc2NpZW50aWZpYyUyMGluZ3JlZGllbnRzfGVufDF8fHx8MTc3MDI3MDUxN3ww&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Loyalty Membership"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-40 bg-gradient-to-br from-[#FFD700] to-[#FFA000] rounded-lg shadow-2xl transform -rotate-6 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-white text-xs font-semibold mb-1">VIP MEMBER</p>
+                  <p className="text-white text-2xl font-bold">GOLD TIER</p>
+                  <p className="text-white/80 text-xs mt-2">Exclusive Access</p>
+                </div>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9C27B0] rounded-full">
+                    <Target size={12} className="text-white" />
+                    <span className="text-xs font-semibold text-white">Optimized for High LTV</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white leading-tight">
+                    Unlock Your Tier:<br />0% Alcohol Formula
+                  </h3>
+                  <p className="text-sm text-white/90">Pure Hyaluronic Acid + Ceramide Complex</p>
+                </div>
+              </div>
+              <button
+                onClick={handleRegenerate}
+                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
+              >
+                <RefreshCw size={18} className="text-[#7B61FF]" />
+              </button>
+            </div>
+            <div className="p-4 border-t border-black/[0.08]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">AI Optimization</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Check size={12} className="text-[#00C853]" />
+                      <span className="text-xs text-[#00C853] font-medium">Ingredient Focus</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Check size={12} className="text-[#00C853]" />
+                      <span className="text-xs text-[#00C853] font-medium">Exclusivity</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-[#6B7280]">Predicted CTR</p>
+                  <p className="text-lg font-semibold text-[#7B61FF]">4.9%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Right Sidebar */}

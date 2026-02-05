@@ -12,7 +12,8 @@
       "Bash(head:*)",
       "WebSearch",
       "WebFetch(domain:ai-sdk.dev)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(tree:*)"
     ]
   }
 }
