@@ -1,37 +1,24 @@
-'use client';
+export const dynamic = 'force-dynamic';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { FlaskConical, Building2, Wand2, Send } from 'lucide-react';
+import { PromptInput } from '@/components/creative/prompt-input';
+import { getActiveCampaign, getCampaignCreatives } from '@/lib/db/queries';
 
-const fallbackCreativeGroups = [
-  {
-    persona: 'Skincare Geeks',
-    icon: FlaskConical,
-    iconBg: '#E8F5E9',
-    iconColor: '#00C853',
-    theme: 'Laboratory & Science',
-    images: [
-      { id: 1, url: 'https://images.unsplash.com/photo-1626498068278-fb9d0bfb6686?w=400&h=300&fit=crop', title: 'Clean Lab Setting' },
-      { id: 2, url: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&h=300&fit=crop', title: 'Natural Ingredients' },
-      { id: 3, url: 'https://images.unsplash.com/photo-1570194065650-d99fb4a38691?w=400&h=300&fit=crop', title: 'Scientific Precision' },
-    ],
-  },
-  {
-    persona: 'City Commuter',
-    icon: Building2,
-    iconBg: '#E3F2FD',
-    iconColor: '#0052CC',
-    theme: 'Urban & Lifestyle',
-    images: [
-      { id: 4, url: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=400&h=300&fit=crop', title: 'Cafe Moment' },
-      { id: 5, url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=300&fit=crop', title: 'City Lifestyle' },
-      { id: 6, url: 'https://images.unsplash.com/photo-1626498068278-fb9d0bfb6686?w=400&h=300&fit=crop', title: 'On-the-Go' },
-    ],
-  },
-];
+const PERSONA_ICONS: Record<string, typeof FlaskConical> = { FlaskConical, Building2 };
 
-export default function CreativePage() {
-  const router = useRouter();
+export default async function CreativePage() {
+  const campaign = await getActiveCampaign();
+  const creativeGroups = campaign ? await getCampaignCreatives(campaign.id) : [];
+
+  if (creativeGroups.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto text-center py-16 text-[#6B7280]">
+        <p className="text-lg font-medium">No data available</p>
+        <p className="text-sm mt-1">Create a campaign to get started</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -47,8 +34,8 @@ export default function CreativePage() {
       </div>
 
       <div className="space-y-8">
-        {fallbackCreativeGroups.map((group, index) => {
-          const Icon = group.icon;
+        {creativeGroups.map((group, index) => {
+          const Icon = PERSONA_ICONS[group.iconName] ?? FlaskConical;
           return (
             <div key={index} className="bg-[#2A2A2E] rounded-lg p-6 shadow-lg">
               <div className="flex items-center gap-4 mb-6">
@@ -81,28 +68,16 @@ export default function CreativePage() {
         })}
       </div>
 
-      <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-[#1A1A1A] mb-4">Refine Creative Prompt</h3>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            placeholder="E.g., 'Add more natural lighting' or 'Include product benefits text'"
-            className="flex-1 px-4 py-3 bg-[#F4F6F8] border border-[rgba(0,0,0,0.08)] rounded-lg text-[#1A1A1A] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
-          />
-          <button className="px-6 py-3 bg-[#F4F6F8] text-[#1A1A1A] rounded-lg font-medium hover:bg-[#E0E4E8] transition-all border border-[rgba(0,0,0,0.08)]">
-            <Wand2 className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      <PromptInput />
 
       <div className="flex justify-center pt-4">
-        <button
-          onClick={() => router.push('/distribution')}
-          className="px-8 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+        <Link
+          href="/distribution"
+          className="px-8 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2"
         >
           <Send className="w-5 h-5" />
           Deploy to A/B Testing
-        </button>
+        </Link>
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 'use client';
 
 import { Users, ArrowRight, Target } from 'lucide-react';
-import { type LucideIcon } from 'lucide-react';
+import { IconResolver } from '@/components/shared/icon-resolver';
 
 interface MiniPersona {
-  id: number;
+  id: string | number;
   title: string;
-  icon: LucideIcon;
+  iconName: string;
   iconBg: string;
   iconColor: string;
   intent: number;
@@ -17,6 +17,10 @@ interface TransformationVisualProps {
 }
 
 export function TransformationVisual({ personas }: TransformationVisualProps) {
+  const avgIntent = personas.length > 0
+    ? Math.round(personas.reduce((sum, p) => sum + p.intent, 0) / personas.length)
+    : 0;
+
   return (
     <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-8 shadow-sm">
       <div className="flex items-center justify-center gap-8">
@@ -27,10 +31,6 @@ export function TransformationVisual({ personas }: TransformationVisualProps) {
             </div>
             <h3 className="font-semibold text-[#1A1A1A] mb-2">Broad Audience</h3>
             <p className="text-sm text-[#6B7280]">Generic targeting</p>
-            <div className="mt-4 space-y-2">
-              <div className="text-xs text-[#6B7280]"><span className="font-medium">Reach:</span> 2.5M</div>
-              <div className="text-xs text-[#6B7280]"><span className="font-medium">Avg. Intent:</span> 45%</div>
-            </div>
           </div>
         </div>
 
@@ -44,7 +44,7 @@ export function TransformationVisual({ personas }: TransformationVisualProps) {
             {personas.map((persona) => (
               <div key={persona.id} className="bg-gradient-to-br from-white to-[#F4F6F8] rounded-lg p-4 border border-[rgba(0,0,0,0.08)]">
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: persona.iconBg }}>
-                  <persona.icon className="w-6 h-6" style={{ color: persona.iconColor }} />
+                  <IconResolver name={persona.iconName} className="w-6 h-6" style={{ color: persona.iconColor }} />
                 </div>
                 <h4 className="font-semibold text-sm text-[#1A1A1A] mb-2">{persona.title}</h4>
                 <div className="flex items-center gap-1 mb-2">

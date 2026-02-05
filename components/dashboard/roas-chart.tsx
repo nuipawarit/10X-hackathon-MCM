@@ -5,10 +5,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface RoasChartProps {
   data: { day: string; roas: number }[];
-  changePercent?: string;
+  changePercent: string;
 }
 
-export function RoasChart({ data, changePercent = '-47%' }: RoasChartProps) {
+export function RoasChart({ data, changePercent }: RoasChartProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.08)] p-6 shadow-sm">
       <div className="flex items-center justify-between mb-6">

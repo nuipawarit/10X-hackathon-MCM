@@ -1,10 +1,11 @@
 'use client';
 
-import { type LucideIcon } from 'lucide-react';
+import { IconResolver } from '@/components/shared/icon-resolver';
 
 interface PersonaCardProps {
+  id?: string | number;
   title: string;
-  icon: LucideIcon;
+  iconName: string;
   iconBg: string;
   iconColor: string;
   tags: string[];
@@ -15,7 +16,7 @@ interface PersonaCardProps {
 }
 
 export function PersonaCard({
-  title, icon: Icon, iconBg, iconColor, tags, intent, description, demographics, interests,
+  title, iconName, iconBg, iconColor, tags, intent, description, demographics, interests,
 }: PersonaCardProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(0,0,0,0.08)] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -25,7 +26,7 @@ export function PersonaCard({
             className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: iconBg }}
           >
-            <Icon className="w-8 h-8" style={{ color: iconColor }} />
+            <IconResolver name={iconName} className="w-8 h-8" style={{ color: iconColor }} />
           </div>
           <div className="flex-1">
             <h3 className="text-xl font-semibold text-[#1A1A1A] mb-2">{title}</h3>

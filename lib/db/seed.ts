@@ -1,13 +1,23 @@
-import { sql } from '@vercel/postgres';
-import { drizzle } from 'drizzle-orm/vercel-postgres';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 
-async function seed() {
+export async function seedDatabase() {
+  const sql = neon(process.env.DATABASE_URL!);
   const db = drizzle(sql, { schema });
+
+  console.log('Truncating tables...');
+  await db.delete(schema.optimizationLogs);
+  await db.delete(schema.analytics);
+  await db.delete(schema.deployments);
+  await db.delete(schema.creatives);
+  await db.delete(schema.audiences);
+  await db.delete(schema.platformConnections);
+  await db.delete(schema.campaigns);
+  await db.delete(schema.users);
 
   console.log('Seeding database...');
 
-  // User
   const [user] = await db
     .insert(schema.users)
     .values({
@@ -19,7 +29,6 @@ async function seed() {
 
   console.log('Created user:', user.email);
 
-  // Campaigns
   const [campaign1] = await db
     .insert(schema.campaigns)
     .values({
@@ -48,7 +57,6 @@ async function seed() {
 
   console.log('Created campaigns:', campaign1.name, campaign2.name);
 
-  // Platform Connections
   const platforms = [
     { platform: 'meta', accountId: 'act_123456', status: 'active' as const },
     { platform: 'google', accountId: 'ga_789012', status: 'active' as const },
@@ -68,7 +76,6 @@ async function seed() {
 
   console.log('Created platform connections');
 
-  // Audiences (Personas)
   const [persona1] = await db
     .insert(schema.audiences)
     .values({
@@ -115,7 +122,6 @@ async function seed() {
 
   console.log('Created personas:', persona1.name, persona2.name);
 
-  // Creatives
   const creativeValues = [
     { campaignId: campaign1.id, personaId: persona1.id, type: 'image' as const, status: 'completed' as const, prompt: 'Lab setting skincare', variants: JSON.stringify([{ id: 1, title: 'Clean Lab Setting', headline: 'Science-Backed Skincare', body: 'Formulated with dermatologist-approved ingredients', cta: 'Shop Now', platform: 'tiktok' }, { id: 2, title: 'Natural Ingredients', headline: 'Pure Science, Real Results', body: 'Every ingredient clinically tested', cta: 'Learn More', platform: 'tiktok' }, { id: 3, title: 'Scientific Precision', headline: 'Lab-Tested Formula', body: 'Precision skincare for sensitive skin', cta: 'Try Now', platform: 'lemon8' }]) },
     { campaignId: campaign1.id, personaId: persona2.id, type: 'image' as const, status: 'completed' as const, prompt: 'Urban lifestyle skincare', variants: JSON.stringify([{ id: 1, title: 'Cafe Moment', headline: 'Skincare On The Go', body: 'Your 2-minute morning routine', cta: 'Shop Now', platform: 'instagram' }, { id: 2, title: 'City Lifestyle', headline: 'Urban Shield', body: 'Protection against city pollution', cta: 'Discover', platform: 'instagram' }, { id: 3, title: 'On-the-Go', headline: 'Quick & Effective', body: 'Multi-tasking skincare for busy days', cta: 'Get Yours', platform: 'facebook' }]) },
@@ -129,7 +135,6 @@ async function seed() {
 
   console.log('Created creatives');
 
-  // Deployments
   const deploymentValues = [
     { campaignId: campaign1.id, creativeId: insertedCreatives[0].id, platform: 'tiktok', budget: '2500', status: 'active' as const, estimatedReach: '450K' },
     { campaignId: campaign1.id, creativeId: insertedCreatives[0].id, platform: 'lemon8', budget: '2500', status: 'active' as const, estimatedReach: '280K' },
@@ -145,7 +150,6 @@ async function seed() {
 
   console.log('Created deployments');
 
-  // Analytics (7 days)
   const baseDate = new Date('2026-01-28');
   for (let i = 0; i < 7; i++) {
     const date = new Date(baseDate);
@@ -180,7 +184,6 @@ async function seed() {
 
   console.log('Created analytics data');
 
-  // Optimization Logs
   await db.insert(schema.optimizationLogs).values({
     campaignId: campaign1.id,
     action: 'increase_budget',
@@ -207,4 +210,6 @@ async function seed() {
   console.log('Seed complete!');
 }
 
-seed().catch(console.error);
+if (process.argv[1]?.endsWith('seed.ts') || process.argv[1]?.endsWith('seed.js')) {
+  seedDatabase().catch(console.error);
+}
