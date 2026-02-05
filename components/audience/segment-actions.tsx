@@ -1,34 +1,49 @@
 import { ArrowRight } from 'lucide-react';
-
-interface LifecycleSegment {
-  id: string;
-  name: string;
-  stage: 'new' | 'active' | 'vip' | 'at_risk';
-  recommendedMessaging: string;
-}
-
-const stageColors: Record<string, { color: string; bgColor: string }> = {
-  new: { color: '#00C853', bgColor: '#E8F5E9' },
-  active: { color: '#0052CC', bgColor: '#E3F2FD' },
-  vip: { color: '#9C27B0', bgColor: '#F3E5F5' },
-  at_risk: { color: '#FF9800', bgColor: '#FFF3E0' },
-};
+import { LIFECYCLE_STAGE_CONFIG, type LifecycleSegment } from './lifecycle-config';
 
 export function SegmentActions({ segments }: { segments: LifecycleSegment[] }) {
   return (
-    <div className="bg-white rounded-xl p-6 border border-black/[0.08]">
-      <h4 className="font-medium text-[#1A1A1A] mb-4">Actionable Recommendations</h4>
-      <div className="space-y-3">
+    <div className="bg-white rounded-xl border border-black/[0.08] shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-black/[0.08]">
+        <h2 className="text-xl font-semibold text-[#1A1A1A] mb-1">Recommended Actions by Segment</h2>
+        <p className="text-sm text-[#6B7280]">AI-generated campaign strategies for each customer lifecycle stage</p>
+      </div>
+
+      <div className="divide-y divide-black/[0.08]">
         {segments.map((seg) => {
-          const config = stageColors[seg.stage] ?? stageColors.new;
+          const config = LIFECYCLE_STAGE_CONFIG[seg.stage];
           return (
-            <div key={seg.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-[#F4F6F8] transition-colors">
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: config.color }} />
-              <div className="flex-1 min-w-0">
-                <span className="font-medium text-sm text-[#1A1A1A]">{seg.name}</span>
-                <p className="text-xs text-[#6B7280] mt-0.5 truncate">{seg.recommendedMessaging}</p>
+            <div key={seg.id} className="p-6 hover:bg-[#F4F6F8] transition-all cursor-pointer group">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-4 flex-1">
+                  <div
+                    className="w-1 h-16 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-[#1A1A1A]">{seg.name}</h3>
+                      <div className="px-2 py-1 bg-[#F4F6F8] rounded text-xs font-medium text-[#6B7280]">
+                        {config.impactBadge}
+                      </div>
+                    </div>
+                    <p className="text-sm text-[#6B7280] mb-3">{config.insight}</p>
+                    <button
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all group-hover:shadow-md"
+                      style={{ backgroundColor: `${config.color}15`, color: config.color }}
+                    >
+                      {config.actionLabel}
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-xs text-[#6B7280] mb-1">Estimated Impact</p>
+                  <p className="text-lg font-semibold" style={{ color: config.color }}>
+                    +{config.estimatedImpact}%
+                  </p>
+                </div>
               </div>
-              <ArrowRight size={14} className="text-[#6B7280] flex-shrink-0" />
             </div>
           );
         })}
