@@ -33,18 +33,3 @@ export function formatReach(value: number): string {
   if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
   return String(value);
 }
-
-export const CREATIVE_PLACEHOLDER_IMAGES: Record<string, string> = {
-  'Clean Lab Setting': 'https://images.unsplash.com/photo-1626498068278-fb9d0bfb6686?w=400&h=300&fit=crop',
-  'Natural Ingredients': 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&h=300&fit=crop',
-  'Scientific Precision': 'https://images.unsplash.com/photo-1570194065650-d99fb4a38691?w=400&h=300&fit=crop',
-  'Cafe Moment': 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=400&h=300&fit=crop',
-  'City Lifestyle': 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=300&fit=crop',
-  'On-the-Go': 'https://images.unsplash.com/photo-1626498068278-fb9d0bfb6686?w=400&h=300&fit=crop',
-};
-
-const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&h=300&fit=crop';
-
-export function getCreativeImage(title: string): string {
-  return CREATIVE_PLACEHOLDER_IMAGES[title] ?? DEFAULT_IMAGE;
-}

@@ -1,6 +1,32 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic();
+const MODEL = 'anthropic/claude-sonnet-4.5';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+  baseURL: 'https://ai-gateway.vercel.sh',
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseAIResponse(text: string): any {
+  function clean(s: string): string {
+    s = s.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '');
+    s = s.replace(/,\s*([}\]])/g, '$1');
+    s = s.replace(/"([^"]*?)"/g, (match) =>
+      match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+    );
+    return s.trim();
+  }
+
+  try { return JSON.parse(clean(text)); } catch {}
+
+  const m = text.match(/\[[\s\S]*\]/) || text.match(/\{[\s\S]*\}/);
+  if (m) {
+    try { return JSON.parse(clean(m[0])); } catch {}
+  }
+
+  throw new Error('Failed to parse AI response as JSON');
+}
 
 export async function analyzeAudience(campaignData: {
   name: string;
@@ -8,7 +34,7 @@ export async function analyzeAudience(campaignData: {
   budget: number;
 }) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
+    model: MODEL,
     max_tokens: 2000,
     system: `You are an expert audience analyst for digital marketing.
 Analyze the campaign data and generate 2-5 detailed personas.
@@ -37,7 +63,7 @@ Generate audience personas for this campaign.`,
   });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  return JSON.parse(text);
+  return parseAIResponse(text);
 }
 
 export async function generateCreative(personaData: {
@@ -48,7 +74,7 @@ export async function generateCreative(personaData: {
   platforms: string[];
 }) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
+    model: MODEL,
     max_tokens: 2000,
     system: `You are a creative director for digital advertising.
 Generate ad copy variants tailored to the target persona.
@@ -80,7 +106,7 @@ Direction: ${personaData.prompt}`,
   });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  return JSON.parse(text);
+  return parseAIResponse(text);
 }
 
 export async function optimizeBudget(campaignData: {
@@ -90,7 +116,7 @@ export async function optimizeBudget(campaignData: {
   goal: string;
 }) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
+    model: MODEL,
     max_tokens: 2000,
     system: `You are a budget optimization expert for digital advertising.
 Analyze platform performance and recommend budget reallocation.
@@ -126,5 +152,5 @@ Recommend budget reallocation.`,
   });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  return JSON.parse(text);
+  return parseAIResponse(text);
 }

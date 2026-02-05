@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { CheckCircle2, ArrowDown, ArrowUp, Sparkles } from 'lucide-react';
 import { ResultsRoasChart } from '@/components/results/results-roas-chart';
+import { OptimizeButton } from '@/components/results/optimize-button';
 import { getActiveCampaign, getCampaignResults } from '@/lib/db/queries';
 
 export default async function ResultsPage() {
@@ -101,6 +102,7 @@ export default async function ResultsPage() {
       )}
 
       <div className="flex justify-center gap-4 pt-4">
+        <OptimizeButton campaignId={campaign.id} />
         <Link
           href="/"
           className="px-8 py-3 bg-white text-[#0052CC] rounded-lg font-medium hover:bg-[#F4F6F8] transition-all border-2 border-[#0052CC] inline-block"

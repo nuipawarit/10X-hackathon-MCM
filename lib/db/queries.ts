@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { campaigns, analytics, audiences, creatives, deployments, optimizationLogs } from '@/lib/db/schema';
 import { eq, sql, asc, desc, inArray } from 'drizzle-orm';
-import { PLATFORM_COLORS, getPersonaIconConfig, getCreativeImage, parseReach, formatReach } from './constants';
+import { PLATFORM_COLORS, getPersonaIconConfig, parseReach, formatReach } from './constants';
 
 // ─── Shared ───
 
@@ -162,7 +162,7 @@ export async function getAlertInfo(campaignId: string) {
   if (!decreaseLog) return null;
 
   const trend = await getCampaignTrend(campaignId);
-  let changePercent = '-47%';
+  let changePercent = '--';
   if (trend.length >= 2) {
     const first = trend[0].roas;
     const last = trend[trend.length - 1].roas;
@@ -203,6 +203,7 @@ export async function getConsumerPersonas(campaignId: string) {
       const psycho = (row.psychographics as Psychographics) ?? {};
       const behav = (row.behaviors as Behaviors) ?? {};
       const config = getPersonaIconConfig(index);
+      const savedTags = row.tags as string[] | null;
 
       return {
         id: row.id,
@@ -210,7 +211,7 @@ export async function getConsumerPersonas(campaignId: string) {
         iconName: config.iconName,
         iconBg: config.iconBg,
         iconColor: config.iconColor,
-        tags: behav.interests?.slice(0, 3) ?? [],
+        tags: savedTags ?? behav.interests?.slice(0, 3) ?? [],
         intent: row.intentScore,
         description: row.tagline ?? '',
         demographics: [demo.ageRange, demo.education, demo.lifestyle].filter(Boolean).join(', '),
@@ -274,20 +275,20 @@ export async function getCampaignCreatives(campaignId: string) {
     iconBg: string;
     iconColor: string;
     theme: string;
-    images: Array<{ id: number | string; url: string; title: string }>;
+    images: Array<{ id: number | string; url: string | null; title: string }>;
   }> = [];
 
   for (const [, group] of grouped) {
     const config = getPersonaIconConfig(index);
     const personaName = group.persona?.name?.replace('The ', '') ?? 'Unknown';
-    const allImages: Array<{ id: number | string; url: string; title: string }> = [];
+    const allImages: Array<{ id: number | string; url: string | null; title: string }> = [];
 
     for (const c of group.creativeList) {
       const variants = (c.variants as CreativeVariantData[]) ?? [];
       for (const v of variants) {
         allImages.push({
           id: v.id ?? allImages.length + 1,
-          url: getCreativeImage(v.title ?? ''),
+          url: v.imageUrl ?? null,
           title: v.title ?? 'Creative',
         });
       }

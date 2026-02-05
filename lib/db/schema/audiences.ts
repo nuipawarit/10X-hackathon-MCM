@@ -11,6 +11,7 @@ export const audiences = pgTable('audiences', {
   psychographics: jsonb('psychographics'),
   behaviors: jsonb('behaviors'),
   recommendedMessaging: text('recommended_messaging'),
+  tags: jsonb('tags'),
   aiGenerated: boolean('ai_generated').default(true).notNull(),
   lifecycleStage: varchar('lifecycle_stage', { length: 50 }),
   segmentType: varchar('segment_type', { length: 50 }).default('consumer'),

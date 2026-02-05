@@ -41,6 +41,7 @@ export async function POST(request: Request) {
           psychographics: persona.psychographics,
           behaviors: persona.behaviors,
           recommendedMessaging: persona.recommendedMessaging,
+          tags: persona.tags || [],
         })
         .returning();
 

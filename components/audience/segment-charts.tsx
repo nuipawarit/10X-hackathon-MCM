@@ -4,31 +4,40 @@ import {
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { BarChart3, Radar as RadarIcon } from 'lucide-react';
 
-const growthData = [
-  { month: 'Sep', new: 620, active: 1800, vip: 240, atRisk: 340 },
-  { month: 'Oct', new: 700, active: 1900, vip: 260, atRisk: 380 },
-  { month: 'Nov', new: 750, active: 1950, vip: 280, atRisk: 420 },
-  { month: 'Dec', new: 800, active: 2000, vip: 300, atRisk: 450 },
-  { month: 'Jan', new: 830, active: 2050, vip: 310, atRisk: 470 },
-  { month: 'Feb', new: 850, active: 2100, vip: 320, atRisk: 480 },
-];
+interface GrowthDataPoint {
+  month: string;
+  new: number;
+  active: number;
+  vip: number;
+  atRisk: number;
+}
 
-const radarData = [
-  { metric: 'Precision', ai: 92, manual: 65 },
-  { metric: 'Reach', ai: 85, manual: 78 },
-  { metric: 'Cost Efficiency', ai: 88, manual: 55 },
-  { metric: 'Speed', ai: 95, manual: 40 },
-  { metric: 'Scalability', ai: 90, manual: 50 },
-  { metric: 'Relevance', ai: 87, manual: 72 },
-];
+interface RadarDataPoint {
+  metric: string;
+  ai: number;
+  manual: number;
+}
 
-export function SegmentGrowthChart() {
+export function SegmentGrowthChart({ data }: { data?: GrowthDataPoint[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-xl p-6 border border-black/[0.08]">
+        <h4 className="font-medium text-[#1A1A1A] mb-4">Segment Growth Trend</h4>
+        <div className="flex flex-col items-center justify-center h-[280px] text-[#6B7280]">
+          <BarChart3 size={32} className="mb-2 text-[#6B7280]/30" />
+          <p className="text-sm">No segment data available yet</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl p-6 border border-black/[0.08]">
       <h4 className="font-medium text-[#1A1A1A] mb-4">Segment Growth Trend</h4>
       <ResponsiveContainer width="100%" height={280}>
-        <AreaChart data={growthData}>
+        <AreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} />
           <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} />
@@ -44,12 +53,24 @@ export function SegmentGrowthChart() {
   );
 }
 
-export function RadarComparison() {
+export function RadarComparison({ data }: { data?: RadarDataPoint[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-xl p-6 border border-black/[0.08]">
+        <h4 className="font-medium text-[#1A1A1A] mb-4">AI Discovery vs Manual Targeting</h4>
+        <div className="flex flex-col items-center justify-center h-[280px] text-[#6B7280]">
+          <RadarIcon size={32} className="mb-2 text-[#6B7280]/30" />
+          <p className="text-sm">No comparison data available yet</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl p-6 border border-black/[0.08]">
       <h4 className="font-medium text-[#1A1A1A] mb-4">AI Discovery vs Manual Targeting</h4>
       <ResponsiveContainer width="100%" height={280}>
-        <RadarChart data={radarData}>
+        <RadarChart data={data}>
           <PolarGrid stroke="#E5E7EB" />
           <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11, fill: '#6B7280' }} />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10, fill: '#6B7280' }} />

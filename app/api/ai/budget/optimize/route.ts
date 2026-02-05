@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
-import { campaigns, analytics, deployments } from '@/lib/db/schema';
+import { campaigns, analytics, optimizationLogs } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { optimizeBudget } from '@/lib/ai/claude';
 import { optimizeBudgetSchema } from '@/lib/validations/schemas';
@@ -45,10 +46,26 @@ export async function POST(request: Request) {
       goal: validated.optimizationGoal,
     });
 
+    const batchId = randomUUID();
+    const recommendations = result.recommendations ?? [];
+
+    for (const rec of recommendations) {
+      await db.insert(optimizationLogs).values({
+        campaignId: validated.campaignId,
+        recommendationId: batchId,
+        action: rec.action ?? 'reallocation',
+        platform: rec.platform,
+        previousBudget: String(rec.currentBudget ?? 0),
+        newBudget: String(rec.recommendedBudget ?? 0),
+        reasoning: rec.reasoning,
+      });
+    }
+
     return NextResponse.json({
       data: {
         campaignId: validated.campaignId,
-        recommendations: result.recommendations,
+        batchId,
+        recommendations,
         projectedMetrics: result.projectedMetrics,
       },
     });

@@ -8,6 +8,7 @@ import { AudienceClient } from '@/components/audience/audience-client';
 import { LifecycleCards } from '@/components/audience/lifecycle-cards';
 import { SegmentGrowthChart, RadarComparison } from '@/components/audience/segment-charts';
 import { SegmentActions } from '@/components/audience/segment-actions';
+import { AnalyzeButton } from '@/components/audience/analyze-button';
 import { getActiveCampaign, getConsumerPersonas, getLifecycleSegments } from '@/lib/db/queries';
 
 export default async function AudiencePage() {
@@ -39,6 +40,10 @@ export default async function AudiencePage() {
         </p>
       </div>
 
+      <div className="flex justify-center">
+        <AnalyzeButton campaignId={campaign.id} hasExistingPersonas={personas.length > 0} />
+      </div>
+
       {personas.length > 0 && <TransformationVisual personas={personas} />}
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -47,15 +52,17 @@ export default async function AudiencePage() {
         ))}
       </div>
 
-      <div className="flex justify-center pt-4">
-        <Link
-          href="/creative"
-          className="px-8 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2"
-        >
-          <Sparkles className="w-5 h-5" />
-          Generate Targeted Creatives
-        </Link>
-      </div>
+      {personas.length > 0 && (
+        <div className="flex justify-center pt-4">
+          <Link
+            href="/creative"
+            className="px-8 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-5 h-5" />
+            Generate Targeted Creatives
+          </Link>
+        </div>
+      )}
     </div>
   );
 

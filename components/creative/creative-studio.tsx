@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, ChevronDown, RefreshCw, ArrowRight, TrendingUp, Target, Zap, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Sparkles, ChevronDown, RefreshCw, ArrowRight, TrendingUp, Target, Zap, Check, AlertCircle } from 'lucide-react';
 
 const businessGoals = [
   { id: 'vip', label: 'VIP Retention & Upsell', stage: 'Retain & Grow', tag: 'VIP', color: '#9C27B0' },
@@ -10,60 +11,83 @@ const businessGoals = [
   { id: 'atrisk', label: 'At-Risk Recovery', stage: 'Win-Back', tag: 'Recovery', color: '#FF9800' },
 ];
 
-const targetPersonas = [
-  { id: 'geeks', label: 'The Skincare Geeks', segment: 'Science-focused', tag: 'Research-driven', color: '#00C853' },
-  { id: 'minimalist', label: 'Clean Minimalist', segment: 'Simple routine', tag: 'Less-is-more', color: '#0052CC' },
-  { id: 'luxury', label: 'Luxury Seekers', segment: 'Premium products', tag: 'High-end', color: '#9C27B0' },
-  { id: 'eco', label: 'Eco Conscious', segment: 'Sustainable beauty', tag: 'Green', color: '#00C853' },
-];
+const PERSONA_COLORS = ['#00C853', '#0052CC', '#9C27B0', '#FF9800'];
 
-const strategySuggestions: Record<string, Record<string, string>> = {
-  vip: {
-    geeks: 'VIP geeks respond to exclusive early-access to clinical formulations. Leverage scientific credibility with premium packaging.',
-    minimalist: 'VIP minimalists value curated, limited-edition simple routines. Focus on quality over quantity messaging.',
-    luxury: 'High-LTV luxury seekers expect exclusive, personalized premium experiences. Emphasize rarity and craftsmanship.',
-    eco: 'Eco-conscious VIPs want sustainable luxury. Highlight ethical sourcing and premium eco-packaging.',
-  },
-  new: {
-    geeks: 'New science-focused customers need education-first content. Lead with ingredient transparency and clinical proof.',
-    minimalist: 'First-time minimalists seek starter kits. Simple, clean messaging with easy-to-follow routines.',
-    luxury: 'Premium-curious newcomers respond to aspirational lifestyle content. Showcase the luxury experience.',
-    eco: 'New eco-conscious shoppers look for brand values alignment. Lead with sustainability credentials.',
-  },
-  returning: {
-    geeks: 'Returning geeks are ready for advanced formulations. Cross-sell complementary products from their routine.',
-    minimalist: 'Loyal minimalists respond to refill programs and routine optimization. Keep it simple and consistent.',
-    luxury: 'Returning luxury customers expect personalized recommendations. Use purchase history for upsell.',
-    eco: 'Eco-returning customers value loyalty rewards tied to sustainability impact. Show their contribution.',
-  },
-  atrisk: {
-    geeks: 'At-risk geeks may have found alternatives. Win back with new clinical studies and exclusive formulations.',
-    minimalist: 'Lapsing minimalists might feel overwhelmed. Simplify their return with a single hero product.',
-    luxury: 'At-risk luxury customers need exclusive re-engagement. VIP-only comeback offers with personal touch.',
-    eco: 'Eco-conscious at-risk users may have concerns about practices. Address transparency and improvements.',
-  },
-};
+interface DbPersona {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  intent: number | null;
+  interests: string[];
+}
+
+interface CreativeVariant {
+  id: number;
+  title: string;
+  headline: string;
+  body: string;
+  cta: string;
+  platform: string;
+  imageUrl?: string;
+}
 
 interface CreativeGroup {
   persona: string;
   theme: string;
-  images: Array<{ id: number | string; url: string; title: string }>;
+  images: Array<{ id: number | string; url: string | null; title: string }>;
 }
 
 interface CreativeStudioProps {
+  campaignId: string;
+  personas: DbPersona[];
   creativeGroups: CreativeGroup[];
 }
 
-export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
+export function CreativeStudio({ campaignId, personas, creativeGroups }: CreativeStudioProps) {
+  const router = useRouter();
   const [selectedGoal, setSelectedGoal] = useState(businessGoals[0]);
-  const [selectedPersona, setSelectedPersona] = useState(targetPersonas[0]);
+  const [selectedPersonaIdx, setSelectedPersonaIdx] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [variants, setVariants] = useState<CreativeVariant[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const suggestion = strategySuggestions[selectedGoal.id]?.[selectedPersona.id] ?? 'Select a goal and persona to see AI suggestions.';
+  const hasPersonas = personas.length > 0;
+  const selectedPersona = hasPersonas ? personas[selectedPersonaIdx] : null;
+  const personaColor = PERSONA_COLORS[selectedPersonaIdx % PERSONA_COLORS.length];
 
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
+    if (!selectedPersona) return;
     setIsRegenerating(true);
-    setTimeout(() => setIsRegenerating(false), 2000);
+    setError(null);
+    setVariants([]);
+
+    try {
+      const res = await fetch('/api/ai/creative/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId,
+          personaId: selectedPersona.id,
+          type: 'image',
+          prompt: `${selectedGoal.label} campaign targeting ${selectedPersona.title}: ${selectedPersona.description}`,
+          platforms: ['tiktok', 'meta', 'lemon8'],
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message ?? 'Failed to generate');
+      }
+
+      const { data } = await res.json();
+      if (data.variants) setVariants(data.variants);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   return (
@@ -98,19 +122,29 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
             <label className="text-xs text-[#6B7280] mb-1 block">Target Persona</label>
             <div className="relative">
               <select
-                value={selectedPersona.id}
-                onChange={(e) => setSelectedPersona(targetPersonas.find(p => p.id === e.target.value)!)}
+                value={selectedPersonaIdx}
+                onChange={(e) => setSelectedPersonaIdx(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm border border-black/[0.08] rounded-lg bg-[#F4F6F8] appearance-none pr-8"
               >
-                {targetPersonas.map(p => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
+                {hasPersonas ? (
+                  personas.map((p, i) => (
+                    <option key={p.id} value={i}>{p.title}</option>
+                  ))
+                ) : (
+                  <option value={0}>No personas available</option>
+                )}
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" />
             </div>
-            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${selectedPersona.color}15`, color: selectedPersona.color }}>
-              {selectedPersona.tag}
-            </span>
+            {selectedPersona && (
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {selectedPersona.tags.map(tag => (
+                  <span key={tag} className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${personaColor}15`, color: personaColor }}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -120,16 +154,29 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
             <Sparkles size={16} className="text-[#0052CC]" />
             <span className="text-xs font-medium text-[#0052CC]">AI Strategy Fusion</span>
           </div>
-          <p className="text-xs text-[#1A1A1A] leading-relaxed">{suggestion}</p>
+          <p className="text-xs text-[#1A1A1A] leading-relaxed">
+            {selectedPersona
+              ? `${selectedGoal.label} strategy for ${selectedPersona.title}. ${selectedPersona.description}`
+              : 'Select a persona to see AI suggestions.'}
+          </p>
         </div>
 
         {/* Context Stats */}
         <div className="bg-white rounded-xl p-5 border border-black/[0.08]">
           <h4 className="text-xs text-[#6B7280] mb-3">Context Stats</h4>
           <div className="space-y-2 text-xs">
-            <div className="flex justify-between"><span className="text-[#6B7280]">Segment Size</span><span className="font-medium">2,400</span></div>
-            <div className="flex justify-between"><span className="text-[#6B7280]">Avg. Order Value</span><span className="font-medium">฿4,250</span></div>
-            <div className="flex justify-between"><span className="text-[#6B7280]">Purchase Freq.</span><span className="font-medium">3.2x/mo</span></div>
+            <div className="flex justify-between">
+              <span className="text-[#6B7280]">Intent Score</span>
+              <span className="font-medium">{selectedPersona?.intent ?? '-'}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6B7280]">Interests</span>
+              <span className="font-medium">{selectedPersona?.interests.length ?? 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6B7280]">Variants Generated</span>
+              <span className="font-medium">{variants.length}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -145,12 +192,12 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
               </h3>
             </div>
             <p className="text-xs text-[#6B7280]">
-              AI-crafted creatives optimized for {selectedGoal.label} targeting {selectedPersona.label}
+              AI-crafted creatives optimized for {selectedGoal.label}{selectedPersona ? ` targeting ${selectedPersona.title}` : ''}
             </p>
           </div>
           <button
             onClick={handleRegenerate}
-            disabled={isRegenerating}
+            disabled={isRegenerating || !hasPersonas}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-black/[0.08] rounded-lg hover:border-[#7B61FF] hover:bg-[#7B61FF]/5 transition-all disabled:opacity-50"
           >
             <RefreshCw size={14} className={`text-[#7B61FF] ${isRegenerating ? 'animate-spin' : ''}`} />
@@ -160,114 +207,117 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Card 1: Upsell Ad */}
-          <div className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
-            <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
-              <img
-                src="https://images.unsplash.com/photo-1758426637739-fcb6eea3f4d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwc3Vuc2NyZWVuJTIwYm90dGxlcyUyMHNjaWVudGlmaWMlMjBsYWJvcmF0b3J5fGVufDF8fHx8MTc3MDI3MDUxN3ww&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Premium VIP Bundle"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
-                <div className="space-y-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9C27B0] rounded-full">
-                    <Zap size={12} className="text-white" />
-                    <span className="text-xs font-semibold text-white">Optimized for Upsell</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-white leading-tight">
-                    Exclusive VIP Bundle:<br />The Ultimate Protection Science
-                  </h3>
-                  <p className="text-sm text-white/90">Advanced SPF50+ PA++++ with Niacinamide Complex</p>
-                </div>
-              </div>
-              <button
-                onClick={handleRegenerate}
-                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
-              >
-                <RefreshCw size={18} className="text-[#7B61FF]" />
-              </button>
-            </div>
-            <div className="p-4 border-t border-black/[0.08]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-[#6B7280] mb-1">AI Optimization</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <Check size={12} className="text-[#00C853]" />
-                      <span className="text-xs text-[#00C853] font-medium">Premium Imagery</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Check size={12} className="text-[#00C853]" />
-                      <span className="text-xs text-[#00C853] font-medium">Science Appeal</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-[#6B7280]">Predicted CTR</p>
-                  <p className="text-lg font-semibold text-[#7B61FF]">5.2%</p>
-                </div>
-              </div>
-            </div>
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
+        )}
 
-          {/* Card 2: Loyalty Ad */}
-          <div className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
-            <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
-              <img
-                src="https://images.unsplash.com/photo-1532642431870-2cd545b1c86c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2luY2FyZSUyMHRleHR1cmUlMjBjbG9zZXVwJTIwc2NpZW50aWZpYyUyMGluZ3JlZGllbnRzfGVufDF8fHx8MTc3MDI3MDUxN3ww&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Loyalty Membership"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-40 bg-gradient-to-br from-[#FFD700] to-[#FFA000] rounded-lg shadow-2xl transform -rotate-6 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-white text-xs font-semibold mb-1">VIP MEMBER</p>
-                  <p className="text-white text-2xl font-bold">GOLD TIER</p>
-                  <p className="text-white/80 text-xs mt-2">Exclusive Access</p>
-                </div>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6">
-                <div className="space-y-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9C27B0] rounded-full">
-                    <Target size={12} className="text-white" />
-                    <span className="text-xs font-semibold text-white">Optimized for High LTV</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-white leading-tight">
-                    Unlock Your Tier:<br />0% Alcohol Formula
-                  </h3>
-                  <p className="text-sm text-white/90">Pure Hyaluronic Acid + Ceramide Complex</p>
-                </div>
-              </div>
-              <button
-                onClick={handleRegenerate}
-                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
-              >
-                <RefreshCw size={18} className="text-[#7B61FF]" />
-              </button>
-            </div>
-            <div className="p-4 border-t border-black/[0.08]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-[#6B7280] mb-1">AI Optimization</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <Check size={12} className="text-[#00C853]" />
-                      <span className="text-xs text-[#00C853] font-medium">Ingredient Focus</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Check size={12} className="text-[#00C853]" />
-                      <span className="text-xs text-[#00C853] font-medium">Exclusivity</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-[#6B7280]">Predicted CTR</p>
-                  <p className="text-lg font-semibold text-[#7B61FF]">4.9%</p>
-                </div>
-              </div>
-            </div>
+        {!hasPersonas && (
+          <div className="text-center py-12 text-[#6B7280]">
+            <Sparkles size={32} className="mx-auto mb-3 text-[#7B61FF]/40" />
+            <p className="font-medium">No personas available</p>
+            <p className="text-sm mt-1">Go to Audience page to analyze and generate personas first</p>
           </div>
-        </div>
+        )}
+
+        {/* AI Generated Variants */}
+        {variants.length > 0 && (
+          <div className="grid grid-cols-2 gap-6">
+            {variants.slice(0, 4).map((v, i) => (
+              <div key={v.id ?? i} className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
+                <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
+                  {v.imageUrl ? (
+                    <img src={v.imageUrl} alt={v.headline} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF]/10 via-[#0052CC]/5 to-[#00C853]/10" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+                    <div className="space-y-3">
+                      <span className="inline-block px-2 py-0.5 text-xs bg-white/20 backdrop-blur rounded-full text-white font-medium uppercase">{v.platform}</span>
+                      <h3 className="text-xl font-bold text-white leading-tight">{v.headline}</h3>
+                      <p className="text-sm text-white/80">{v.body}</p>
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#0052CC] text-white rounded-full text-sm font-medium">
+                        {v.cta}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRegenerate}
+                    className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
+                  >
+                    <RefreshCw size={18} className="text-[#7B61FF]" />
+                  </button>
+                </div>
+                <div className="p-4 border-t border-black/[0.08]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-[#1A1A1A] mb-1">{v.title}</p>
+                      <div className="flex items-center gap-1">
+                        <Check size={12} className="text-[#00C853]" />
+                        <span className="text-xs text-[#00C853] font-medium">AI Generated</span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-1 text-xs bg-[#E8F1FF] text-[#0052CC] rounded font-medium">{v.platform}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Existing creatives (from DB) when no fresh variants */}
+        {variants.length === 0 && hasPersonas && (
+          <div className="grid grid-cols-2 gap-6">
+            {creativeGroups.length > 0 ? (
+              creativeGroups.slice(0, 2).map((group, gi) => (
+                <div key={gi} className="bg-white rounded-xl border border-black/[0.08] shadow-md hover:shadow-xl transition-all overflow-hidden group">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-[#F4F6F8] to-white">
+                    {group.images[0]?.url ? (
+                      <img src={group.images[0].url} alt={group.images[0].title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-[#6B7280]">
+                        <Sparkles size={32} className="text-[#7B61FF]/30" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+                      <div className="space-y-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9C27B0] rounded-full">
+                          <Zap size={12} className="text-white" />
+                          <span className="text-xs font-semibold text-white">{group.persona}</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white leading-tight">{group.theme}</h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleRegenerate}
+                      className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-white"
+                    >
+                      <RefreshCw size={18} className="text-[#7B61FF]" />
+                    </button>
+                  </div>
+                  <div className="p-4 border-t border-black/[0.08]">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-[#6B7280] mb-1">Existing Creative</p>
+                        <div className="flex items-center gap-1">
+                          <Check size={12} className="text-[#00C853]" />
+                          <span className="text-xs text-[#00C853] font-medium">{group.images.length} variant{group.images.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-12 text-[#6B7280]">
+                <p className="font-medium">No creatives yet</p>
+                <p className="text-sm mt-1">Click &quot;Regenerate All&quot; to generate AI creatives</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right Sidebar */}
@@ -275,50 +325,52 @@ export function CreativeStudio({ creativeGroups }: CreativeStudioProps) {
         <div className="bg-white rounded-xl p-5 border border-black/[0.08]">
           <h3 className="font-medium text-[#1A1A1A] text-sm mb-4">Performance Prediction</h3>
 
-          <div className="text-center mb-4">
-            <p className="text-4xl font-medium text-[#00C853]">4.8%</p>
-            <p className="text-xs text-[#6B7280] mt-1">Predicted Conversion Rate</p>
-            <p className="text-xs text-[#00C853] font-medium">+2.1% vs category avg</p>
-          </div>
-
-          <div className="space-y-3 mb-4">
-            <div className="flex items-start gap-2">
-              <Check size={14} className="text-[#00C853] mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-[#6B7280]">Strong ingredient-science messaging matches geek persona preferences</p>
+          {variants.length > 0 ? (
+            <>
+              <div className="text-center mb-4">
+                <p className="text-4xl font-medium text-[#00C853]">{variants.length}</p>
+                <p className="text-xs text-[#6B7280] mt-1">Variants Generated</p>
+                <p className="text-xs text-[#00C853] font-medium">{variants.filter(v => v.imageUrl).length} with AI images</p>
+              </div>
+              <div className="space-y-3 mb-4">
+                {variants.slice(0, 3).map((v, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Check size={14} className="text-[#00C853] mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-[#6B7280]">{v.platform}: {v.headline}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4 text-[#6B7280]">
+              <Target size={24} className="mx-auto mb-2 text-[#6B7280]/40" />
+              <p className="text-xs">Generate creatives to see predictions</p>
             </div>
-            <div className="flex items-start gap-2">
-              <Check size={14} className="text-[#00C853] mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-[#6B7280]">VIP exclusivity triggers higher engagement from loyal customers</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <Check size={14} className="text-[#00C853] mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-[#6B7280]">Visual format optimized for TikTok and Lemon8 feeds</p>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl p-5 border border-black/[0.08]">
-          <h4 className="text-xs text-[#6B7280] mb-3">Expected Impact</h4>
+          <h4 className="text-xs text-[#6B7280] mb-3">Generation Summary</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <TrendingUp size={14} className="text-[#00C853]" />
               <div className="flex-1">
-                <p className="text-xs text-[#6B7280]">Click-Through Rate</p>
-                <p className="text-sm font-medium">3.2% (estimated)</p>
+                <p className="text-xs text-[#6B7280]">Platforms</p>
+                <p className="text-sm font-medium">{variants.length > 0 ? [...new Set(variants.map(v => v.platform))].join(', ') : '--'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Target size={14} className="text-[#0052CC]" />
               <div className="flex-1">
-                <p className="text-xs text-[#6B7280]">CPA Improvement</p>
-                <p className="text-sm font-medium">-35% vs current</p>
+                <p className="text-xs text-[#6B7280]">Target Persona</p>
+                <p className="text-sm font-medium">{selectedPersona?.title ?? '--'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Zap size={14} className="text-[#FF9800]" />
               <div className="flex-1">
-                <p className="text-xs text-[#6B7280]">Expected ROAS</p>
-                <p className="text-sm font-medium">4.5x</p>
+                <p className="text-xs text-[#6B7280]">Business Goal</p>
+                <p className="text-sm font-medium">{selectedGoal.label}</p>
               </div>
             </div>
           </div>

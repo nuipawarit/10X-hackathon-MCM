@@ -42,6 +42,7 @@ export const optimizeBudgetSchema = z.object({
 
 export const applyOptimizationSchema = z.object({
   recommendationId: z.string().uuid(),
+  campaignId: z.string().uuid(),
 });
 
 export const connectPlatformSchema = z.object({

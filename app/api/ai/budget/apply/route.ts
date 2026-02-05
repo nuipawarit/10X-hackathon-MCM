@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       await db
         .update(optimizationLogs)
         .set({ applied: true, appliedAt: new Date() })
-        .where(eq(optimizationLogs.id, log.id));
+        .where(eq(optimizationLogs.recommendationId, validated.recommendationId));
 
       return NextResponse.json({
         data: {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const [newLog] = await db
       .insert(optimizationLogs)
       .values({
-        campaignId: '00000000-0000-0000-0000-000000000000',
+        campaignId: validated.campaignId,
         recommendationId: validated.recommendationId,
         action: 'apply_recommendation',
         applied: true,

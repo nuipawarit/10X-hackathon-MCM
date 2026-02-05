@@ -2,13 +2,11 @@ export const dynamic = 'force-dynamic';
 
 import { Sparkles } from 'lucide-react';
 import { CreativeStudio } from '@/components/creative/creative-studio';
-import { getActiveCampaign, getCampaignCreatives } from '@/lib/db/queries';
+import { getActiveCampaign, getCampaignCreatives, getConsumerPersonas } from '@/lib/db/queries';
 
 export default async function CreativePage() {
   const campaign = await getActiveCampaign();
-  const creativeGroups = campaign ? await getCampaignCreatives(campaign.id) : [];
-
-  if (creativeGroups.length === 0) {
+  if (!campaign) {
     return (
       <div className="max-w-7xl mx-auto text-center py-16 text-[#6B7280]">
         <p className="text-lg font-medium">No data available</p>
@@ -16,6 +14,11 @@ export default async function CreativePage() {
       </div>
     );
   }
+
+  const [creativeGroups, personas] = await Promise.all([
+    getCampaignCreatives(campaign.id),
+    getConsumerPersonas(campaign.id),
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -30,7 +33,7 @@ export default async function CreativePage() {
         </p>
       </div>
 
-      <CreativeStudio creativeGroups={creativeGroups} />
+      <CreativeStudio campaignId={campaign.id} personas={personas} creativeGroups={creativeGroups} />
     </div>
   );
 }
