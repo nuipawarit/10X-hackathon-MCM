@@ -1,245 +1,243 @@
 # MCM API Reference
 
-**Document ID:** API-001
-**Version:** 1.0
+**Document ID:** API-002
+**Version:** 2.0
 **Last Updated:** 2026-02-05
-**Source:** [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md)
+**Source:** [`docs/1-PRD.md`](./1-PRD.md), [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md)
 
 ---
 
-## Context
-
-> **Reference:** Architecture "4 Core Modules" และ "Data Flow"
-
-### Purpose
-
-API Reference สำหรับ MCM Platform ที่รองรับ **4 Core Modules**:
-
-| Module | API Prefix | Purpose |
-|--------|-----------|---------|
-| **Integration Mesh** | `/api/integrations` | Platform connections, Deployments |
-| **AI Optimization** | `/api/ai/budget` | Budget optimization, ROAS analysis |
-| **Creative Studio** | `/api/ai/creative` | Creative generation |
-| **Intelligent Targeting** | `/api/ai/audience` | Persona generation |
-
-### Base URLs
-
-| Environment | URL |
-|-------------|-----|
-| Development | `http://localhost:3000/api` |
-| Preview | `https://preview-xxx.vercel.app/api` |
-| Production | `https://mcm.app/api` |
-
-### Authentication
+## Base URL
 
 ```
-Authorization: Bearer <token>
+Development: http://localhost:3000/api
+Production:  https://mcm.vercel.app/api
 ```
 
-> **Note:** MVP uses Mock Auth with demo users (PRD)
+## Error Format
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid campaign ID",
+    "details": [{ "field": "campaignId", "message": "Must be a valid UUID" }]
+  }
+}
+```
+
+## Rate Limits
+
+| Endpoint Group | Limit |
+|---------------|-------|
+| AI APIs (`/api/ai/*`) | 100 req/min |
+| Campaigns (`/api/campaigns/*`) | 1000 req/min |
+| Integrations (`/api/integrations/*`) | 500 req/min |
 
 ---
 
-## Decision
-
-### API Design Principles
-
-| Principle | Implementation | Rationale |
-|-----------|----------------|-----------|
-| **RESTful** | Resource-based URLs | Industry standard |
-| **JSON** | Request/Response format | Universal compatibility |
-| **Versioning** | URL prefix `/api/v1/` (future) | Backward compatibility |
-| **Error Format** | `{ error: { code, message } }` | Consistent error handling |
-| **Pagination** | `?page=1&limit=20` | Large dataset support |
-
----
-
-## Campaign APIs
-
-> **Reference:** Architecture "Data Flow Step 1"
+## 1. Campaigns
 
 ### GET /api/campaigns
 
-**Context:** List all campaigns for current user
-**Module:** Core
+List campaigns with aggregated metrics.
 
-**Response:**
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| page | number | 1 | Page number |
+| limit | number | 10 | Items per page |
+| status | string | - | Filter by status |
+
+**Response 200:**
 ```json
 {
   "data": [
     {
       "id": "uuid",
-      "name": "Summer Sale 2026",
+      "name": "Summer Skincare Launch",
       "objective": "conversion",
       "status": "active",
       "budget": 5000,
-      "roas": 5.8,
-      "startDate": "2026-01-01",
-      "endDate": "2026-02-28"
+      "startDate": "2026-01-28",
+      "endDate": "2026-03-28",
+      "metrics": {
+        "roas": 2.2,
+        "cpa": 15.00,
+        "ctr": 0.8,
+        "conversions": 180,
+        "spend": 3200,
+        "revenue": 7040
+      }
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100
-  }
+  "pagination": { "page": 1, "limit": 10, "total": 2 }
 }
 ```
 
 ### POST /api/campaigns
 
-**Context:** Create new campaign
-**Module:** Core
+Create a new campaign.
 
-**Request:**
+**Request Body:**
 ```json
 {
-  "name": "Summer Sale 2026",
-  "objective": "awareness|consideration|conversion",
-  "budget": 5000,
-  "startDate": "2026-01-01",
-  "endDate": "2026-02-28"
+  "name": "Q2 Brand Campaign",
+  "objective": "awareness",
+  "budget": 10000,
+  "startDate": "2026-04-01",
+  "endDate": "2026-06-30"
 }
 ```
 
-**Response:**
+**Response 201:**
 ```json
 {
-  "data": {
-    "id": "uuid",
-    "status": "draft"
-  }
+  "data": { "id": "uuid", "name": "Q2 Brand Campaign", "status": "draft", ... }
 }
 ```
 
 ### GET /api/campaigns/:id
 
-**Context:** Get campaign details with analytics
-**Module:** Core + AI Optimization
+Get campaign detail with trend data.
 
-**Response:**
+**Response 200:**
 ```json
 {
   "data": {
     "id": "uuid",
-    "name": "Summer Sale 2026",
-    "metrics": {
-      "impressions": 1500000,
-      "clicks": 45000,
-      "conversions": 1200,
-      "spend": 4500,
-      "revenue": 26100,
-      "ctr": 0.03,
-      "cpa": 3.75,
-      "roas": 5.8
-    },
-    "trend": {
-      "roasChange": "+164%",
-      "cpaChange": "-40%"
-    }
+    "name": "Summer Skincare Launch",
+    "status": "active",
+    "budget": 5000,
+    "metrics": { "roas": 2.2, "cpa": 15.00, "ctr": 0.8, "conversions": 180 },
+    "trend": [
+      { "date": "2026-01-28", "roas": 4.2 },
+      { "date": "2026-01-29", "roas": 4.0 },
+      { "date": "2026-01-30", "roas": 3.8 },
+      { "date": "2026-01-31", "roas": 3.2 },
+      { "date": "2026-02-01", "roas": 2.8 },
+      { "date": "2026-02-02", "roas": 2.5 },
+      { "date": "2026-02-03", "roas": 2.2 }
+    ],
+    "creatives": [
+      {
+        "id": "uuid",
+        "name": "Lifestyle Video",
+        "platform": "Facebook",
+        "status": "Low Performance",
+        "cpa": 15.00,
+        "ctr": 0.8,
+        "conversions": 24
+      },
+      {
+        "id": "uuid",
+        "name": "Texture Zoom Image",
+        "platform": "TikTok",
+        "status": "High Performance",
+        "cpa": 4.50,
+        "ctr": 3.2,
+        "conversions": 156
+      }
+    ]
   }
 }
 ```
 
 ---
 
-## AI Audience APIs
-
-> **Reference:** Architecture "Module 4: Intelligent Targeting"
+## 2. AI Audience Analysis
 
 ### POST /api/ai/audience/analyze
 
-**Context:** Analyze audience and generate personas
-**Module:** Intelligent Targeting
-**PRD Feature:** F2 - AI Audience Discovery
+Trigger AI persona generation for a campaign.
 
-**Request:**
+**Request Body:**
 ```json
 {
   "campaignId": "uuid",
-  "dataSources": ["meta", "google", "tiktok"]
+  "dataSources": ["meta", "tiktok"]
 }
 ```
 
-**Response:**
+**Response 200:**
 ```json
 {
   "data": {
-    "personaCount": 2,
+    "campaignId": "uuid",
     "personas": [
       {
         "id": "uuid",
-        "name": "Skincare Geeks",
-        "tagline": "Science-driven beauty enthusiasts",
-        "intentScore": 87,
+        "name": "The Skincare Geeks",
+        "tagline": "Science-focused consumers who research ingredients",
+        "intentScore": 92,
         "demographics": {
-          "ageRange": "25-35",
-          "genderSplit": { "female": 75, "male": 25 },
-          "locations": ["Bangkok", "Chiang Mai"]
+          "ageRange": "25-40",
+          "education": "College-educated",
+          "lifestyle": "Urban"
         },
         "psychographics": {
-          "values": ["Quality", "Innovation"],
-          "painPoints": ["Finding effective products"],
-          "motivations": ["Self-improvement", "Knowledge"]
+          "values": ["Ingredient transparency", "Scientific backing"],
+          "painPoints": ["Sensitive skin", "Misleading claims"],
+          "motivations": ["Effective results", "Clean formulations"]
         },
         "behaviors": {
           "platforms": ["TikTok", "Lemon8"],
-          "purchaseTriggers": ["Scientific evidence", "Reviews"]
+          "interests": ["Clean Beauty", "Dermatology", "Product Research"],
+          "purchaseTriggers": ["Clinical studies", "Before/after photos"]
         },
-        "recommendedMessaging": "Lead with ingredients and clinical results"
+        "recommendedMessaging": "Focus on ingredient science and clinical results",
+        "tags": ["Ingredients", "Sensitive Skin", "Reviews"]
       }
     ]
   }
 }
 ```
 
-**Consequence:** Creates 2-5 persona records in `audiences` table
-
 ### GET /api/ai/audience/:campaignId
 
-**Context:** Get personas for a campaign
-**Module:** Intelligent Targeting
+Get personas for a campaign.
 
-**Response:**
+**Response 200:**
 ```json
 {
-  "data": {
-    "personas": [
-      {
-        "id": "uuid",
-        "name": "Skincare Geeks",
-        "intentScore": 87,
-        "aiGenerated": true,
-        "createdAt": "2026-02-05T10:00:00Z"
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": "uuid",
+      "name": "The Skincare Geeks",
+      "tagline": "Science-focused consumers...",
+      "intentScore": 92,
+      "demographics": { ... },
+      "psychographics": { ... },
+      "behaviors": { ... },
+      "tags": ["Ingredients", "Sensitive Skin", "Reviews"],
+      "aiGenerated": true,
+      "createdAt": "2026-02-05T00:00:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-## AI Creative APIs
-
-> **Reference:** Architecture "Module 3: Generative Creative Studio"
+## 3. AI Creative Generation
 
 ### POST /api/ai/creative/generate
 
-**Context:** Generate creative assets with AI
-**Module:** Generative Creative Studio
-**PRD Feature:** F3 - Generative Creative Studio
+Generate ad creatives for a persona.
 
-**Request:**
+**Request Body:**
 ```json
 {
+  "campaignId": "uuid",
   "personaId": "uuid",
-  "type": "image|video|copy",
-  "prompt": "Create ad for Skincare Geeks persona, emphasizing scientific ingredients",
-  "platforms": ["tiktok", "instagram", "facebook"]
+  "type": "image",
+  "prompt": "Create lab-setting skincare ads emphasizing science",
+  "platforms": ["tiktok", "lemon8"]
 }
 ```
 
-**Response:**
+**Response 200:**
 ```json
 {
   "data": {
@@ -250,251 +248,221 @@ Authorization: Bearer <token>
 }
 ```
 
-**Consequence:**
-- Creates creative record in `creatives` table
-- Triggers async generation
-- Uploads result to Vercel Blob
-
 ### GET /api/ai/creative/:creativeId
 
-**Context:** Get creative status and result
-**Module:** Generative Creative Studio
+Get creative status and variants.
 
-**Response:**
+**Response 200:**
 ```json
 {
   "data": {
     "id": "uuid",
+    "personaId": "uuid",
+    "type": "image",
     "status": "completed",
-    "type": "copy",
+    "theme": "Laboratory & Science",
     "variants": [
       {
-        "headline": "Discover the Science of Beautiful Skin",
-        "body": "Clinical-grade ingredients. Proven results.",
+        "id": 1,
+        "title": "Clean Lab Setting",
+        "headline": "Science-Backed Skincare",
+        "body": "Formulated with dermatologist-approved ingredients",
         "cta": "Shop Now",
-        "platform": "facebook"
-      },
-      {
-        "headline": "Your Skin Deserves Better",
-        "body": "Lab-tested formulas for real results",
-        "cta": "Learn More",
-        "platform": "instagram"
-      }
-    ],
-    "contentUrl": "https://blob.vercel-storage.com/creatives/...",
-    "thumbnailUrl": "https://blob.vercel-storage.com/thumbnails/..."
-  }
-}
-```
-
----
-
-## AI Budget APIs
-
-> **Reference:** Architecture "Module 2: AI Optimization Core"
-
-### POST /api/ai/budget/optimize
-
-**Context:** Get budget optimization recommendations
-**Module:** AI Optimization Core
-**PRD Feature:** F5 - Performance Results & Optimization
-
-**Request:**
-```json
-{
-  "campaignId": "uuid",
-  "optimizationGoal": "roas|cpa|reach",
-  "autoApply": false
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "recommendationId": "uuid",
-    "currentState": {
-      "totalBudget": 5000,
-      "allocations": [
-        { "platform": "meta", "budget": 2000, "roas": 4.2 },
-        { "platform": "tiktok", "budget": 2000, "roas": 6.5 },
-        { "platform": "google", "budget": 1000, "roas": 3.1 }
-      ]
-    },
-    "recommendations": [
-      {
-        "action": "increase_budget",
         "platform": "tiktok",
-        "change": "+500",
-        "reasoning": "TikTok ROAS (6.5x) is 55% above average (4.2x)"
-      },
-      {
-        "action": "decrease_budget",
-        "platform": "google",
-        "change": "-500",
-        "reasoning": "Google ROAS (3.1x) is 26% below average"
+        "imageUrl": "https://blob.vercel-storage.com/..."
       }
     ],
-    "expectedImpact": {
-      "roasChange": "+12%",
-      "cpaChange": "-8%"
-    }
+    "aiGenerated": true,
+    "createdAt": "2026-02-05T00:00:00Z"
   }
 }
 ```
-
-**Consequence:** If `autoApply: true`, updates budget allocations and logs to `optimization_logs`
-
-### POST /api/ai/budget/apply
-
-**Context:** Apply optimization recommendation
-**Module:** AI Optimization Core
-
-**Request:**
-```json
-{
-  "recommendationId": "uuid"
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "applied": true,
-    "logId": "uuid",
-    "message": "Budget reallocation applied successfully"
-  }
-}
-```
-
-**Consequence:**
-- Updates `deployments` table with new budgets
-- Logs to `optimization_logs` for audit trail (Safety Brake feature from PRD)
 
 ---
 
-## Integration APIs
-
-> **Reference:** Architecture "Module 1: Integration Mesh"
+## 4. Integrations
 
 ### GET /api/integrations
 
-**Context:** List connected platforms
-**Module:** Integration Mesh
-**PRD Feature:** F4 - Cross-Platform Distribution
+List platform connections.
 
-**Response:**
+**Response 200:**
 ```json
 {
-  "data": {
-    "platforms": [
-      {
-        "id": "uuid",
-        "platform": "meta",
-        "accountId": "123456789",
-        "status": "active",
-        "lastSyncAt": "2026-02-05T10:00:00Z"
-      },
-      {
-        "platform": "tiktok",
-        "status": "not_connected"
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": "uuid",
+      "platform": "meta",
+      "accountId": "act_123456",
+      "status": "active",
+      "lastSyncAt": "2026-02-05T00:00:00Z"
+    },
+    {
+      "id": "uuid",
+      "platform": "tiktok",
+      "accountId": "tt_789",
+      "status": "active",
+      "lastSyncAt": "2026-02-05T00:00:00Z"
+    },
+    {
+      "platform": "line",
+      "status": "not_connected"
+    }
+  ]
 }
 ```
 
 ### POST /api/integrations/:platform/connect
 
-**Context:** Connect platform account
-**Module:** Integration Mesh
+Connect a platform.
 
-**Request:**
+**Request Body:**
 ```json
 {
-  "platform": "meta|google|tiktok|line|lemon8",
-  "accessToken": "oauth_token",
-  "accountId": "123456789"
+  "accountId": "act_123456",
+  "accessToken": "EAABsb..."
 }
 ```
 
+**Response 200:**
+```json
+{
+  "data": { "id": "uuid", "platform": "meta", "status": "active" }
+}
+```
+
+---
+
+## 5. Deployments
+
 ### POST /api/deployments
 
-**Context:** Deploy creatives to platforms
-**Module:** Integration Mesh
+Create campaign deployments across platforms.
 
-**Request:**
+**Request Body:**
 ```json
 {
   "campaignId": "uuid",
-  "creativeIds": ["uuid1", "uuid2"],
-  "platforms": [
-    { "platform": "meta", "budget": 2000 },
-    { "platform": "tiktok", "budget": 2000 }
+  "adSets": [
+    {
+      "personaId": "uuid",
+      "creativeIds": ["uuid", "uuid"],
+      "platforms": [
+        { "platform": "tiktok", "budget": 2500, "estimatedReach": "450K" },
+        { "platform": "lemon8", "budget": 2500, "estimatedReach": "280K" }
+      ]
+    }
   ]
 }
 ```
 
-**Response:**
+**Response 201:**
 ```json
 {
   "data": {
     "deployments": [
       {
         "id": "uuid",
-        "platform": "meta",
+        "platform": "tiktok",
+        "budget": 2500,
         "status": "pending",
         "estimatedReach": "450K"
       }
-    ]
-  }
-}
-```
-
----
-
-## Consequences
-
-### Error Codes
-
-| Code | Meaning | Action |
-|------|---------|--------|
-| `400` | Bad Request | Check request body validation |
-| `401` | Unauthorized | Refresh token or re-authenticate |
-| `403` | Forbidden | Check user permissions |
-| `404` | Not Found | Resource doesn't exist |
-| `429` | Rate Limited | Backoff and retry (see `Retry-After` header) |
-| `500` | Server Error | Contact support |
-
-### Error Response Format
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid campaign ID format",
-    "details": {
-      "field": "campaignId",
-      "expected": "uuid"
+    ],
+    "summary": {
+      "totalAdSets": 2,
+      "totalPlatforms": 4,
+      "estimatedReach": "1.63M",
+      "totalBudget": 5000
     }
   }
 }
 ```
 
-### Rate Limits
+---
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| `/api/ai/*` | 100 requests | per minute |
-| `/api/campaigns` | 1000 requests | per minute |
-| `/api/integrations` | 500 requests | per minute |
+## 6. Budget Optimization
+
+### POST /api/ai/budget/optimize
+
+Get AI budget optimization recommendations.
+
+**Request Body:**
+```json
+{
+  "campaignId": "uuid",
+  "optimizationGoal": "roas",
+  "autoApply": false
+}
+```
+
+**Response 200:**
+```json
+{
+  "data": {
+    "campaignId": "uuid",
+    "currentMetrics": {
+      "roas": 2.2,
+      "cpa": 15.00,
+      "ctr": 0.8,
+      "totalSpend": 5000
+    },
+    "recommendations": [
+      {
+        "id": "uuid",
+        "action": "increase_budget",
+        "platform": "tiktok",
+        "currentBudget": 1500,
+        "recommendedBudget": 2500,
+        "reasoning": "TikTok shows 95% above expected CPA targets for Skincare Geeks segment",
+        "expectedImpact": "High"
+      },
+      {
+        "id": "uuid",
+        "action": "decrease_budget",
+        "platform": "meta",
+        "currentBudget": 2500,
+        "recommendedBudget": 1500,
+        "reasoning": "Facebook ROAS declining -47% over 7 days, creative fatigue detected",
+        "expectedImpact": "High"
+      }
+    ],
+    "projectedMetrics": {
+      "roas": 5.8,
+      "cpa": 9.00,
+      "roasImprovement": "+164%",
+      "cpaReduction": "-40%"
+    }
+  }
+}
+```
+
+### POST /api/ai/budget/apply
+
+Apply a budget optimization recommendation.
+
+**Request Body:**
+```json
+{
+  "recommendationId": "uuid"
+}
+```
+
+**Response 200:**
+```json
+{
+  "data": {
+    "applied": true,
+    "logId": "uuid",
+    "message": "Budget reallocated: TikTok +$1,000, Meta -$1,000",
+    "appliedAt": "2026-02-05T12:00:00Z"
+  }
+}
+```
 
 ---
 
 ## References
 
-- **Source Documents:**
-  - [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md) - Modules, Data Flow
-  - [`docs/1-PRD.md`](./1-PRD.md) - Features (F1-F5)
-- **Next Document:** [`docs/4-SETUP-GUIDE.md`](./4-SETUP-GUIDE.md)
+- [`docs/1-PRD.md`](./1-PRD.md) - Feature acceptance criteria
+- [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md) - Database schema, Modules

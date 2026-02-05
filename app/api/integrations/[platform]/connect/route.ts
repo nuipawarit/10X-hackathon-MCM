@@ -1,98 +1,73 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, platformConnections } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { platformConnections, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { z } from 'zod';
-
-const connectSchema = z.object({
-  accessToken: z.string().min(1),
-  accountId: z.string().min(1),
-});
-
-const VALID_PLATFORMS = ['meta', 'google', 'tiktok', 'line', 'lemon8'] as const;
+import { connectPlatformSchema } from '@/lib/validations/schemas';
 
 export async function POST(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
     const { platform } = await params;
+    const body = await request.json();
+    const validated = connectPlatformSchema.parse(body);
 
-    if (!VALID_PLATFORMS.includes(platform as typeof VALID_PLATFORMS[number])) {
+    const [user] = await db.select().from(users).limit(1);
+    if (!user) {
       return NextResponse.json(
-        { error: { code: 'INVALID_PLATFORM', message: 'Invalid platform' } },
-        { status: 400 }
+        { error: { code: 'NOT_FOUND', message: 'No user found' } },
+        { status: 404 }
       );
     }
-
-    const body = await request.json();
-    const validated = connectSchema.parse(body);
 
     const [existing] = await db
       .select()
       .from(platformConnections)
-      .where(eq(platformConnections.platform, platform))
-      .limit(1);
+      .where(
+        and(
+          eq(platformConnections.userId, user.id),
+          eq(platformConnections.platform, platform)
+        )
+      );
 
     if (existing) {
       const [updated] = await db
         .update(platformConnections)
         .set({
-          accessToken: validated.accessToken,
           accountId: validated.accountId,
+          accessToken: validated.accessToken,
           status: 'active',
           lastSyncAt: new Date(),
         })
         .where(eq(platformConnections.id, existing.id))
         .returning();
 
-      return NextResponse.json({
-        data: {
-          id: updated.id,
-          platform: updated.platform,
-          status: updated.status,
-          accountId: updated.accountId,
-        },
-      });
+      return NextResponse.json({ data: updated });
     }
 
     const [connection] = await db
       .insert(platformConnections)
       .values({
+        userId: user.id,
         platform,
-        accessToken: validated.accessToken,
         accountId: validated.accountId,
+        accessToken: validated.accessToken,
         status: 'active',
         lastSyncAt: new Date(),
       })
       .returning();
 
-    return NextResponse.json(
-      {
-        data: {
-          id: connection.id,
-          platform: connection.platform,
-          status: connection.status,
-          accountId: connection.accountId,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ data: connection });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors,
-          },
-        },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } },
         { status: 400 }
       );
     }
-    console.error('Error connecting platform:', error);
     return NextResponse.json(
-      { error: { code: 'CONNECT_ERROR', message: 'Failed to connect platform' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to connect platform' } },
       { status: 500 }
     );
   }

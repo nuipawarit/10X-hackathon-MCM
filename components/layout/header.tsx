@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { BarChart3 } from 'lucide-react';
 
 const navItems = [
-  { path: '/', label: 'Diagnosis' },
+  { path: '/', label: 'Diagnosis', exact: true },
   { path: '/audience', label: 'Audience Insights' },
   { path: '/creative', label: 'Creative Studio' },
   { path: '/distribution', label: 'Distribution' },

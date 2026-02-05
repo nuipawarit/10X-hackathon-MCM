@@ -1,26 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, audiences, creatives } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { audiences, creatives } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
 import { generateCreative } from '@/lib/ai/claude';
+import { generateCreativeSchema } from '@/lib/validations/schemas';
 
-const generateSchema = z.object({
-  personaId: z.string().uuid(),
-  type: z.enum(['image', 'video', 'copy']),
-  prompt: z.string().min(1),
-  platforms: z.array(z.enum(['meta', 'google', 'tiktok', 'line', 'lemon8', 'instagram', 'facebook'])).optional(),
-});
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const validated = generateSchema.parse(body);
+    const validated = generateCreativeSchema.parse(body);
 
     const [persona] = await db
       .select()
       .from(audiences)
-      .where(eq(audiences.id, validated.personaId))
-      .limit(1);
+      .where(eq(audiences.id, validated.personaId));
 
     if (!persona) {
       return NextResponse.json(
@@ -32,64 +25,50 @@ export async function POST(request: NextRequest) {
     const [creative] = await db
       .insert(creatives)
       .values({
-        campaignId: persona.campaignId!,
-        audienceId: validated.personaId,
+        campaignId: validated.campaignId,
+        personaId: validated.personaId,
         type: validated.type,
-        title: `Creative for ${persona.name}`,
-        aiPrompt: validated.prompt,
-        aiGenerated: true,
-        status: 'draft',
+        status: 'generating',
+        prompt: validated.prompt,
       })
       .returning();
 
-    const platforms = validated.platforms || ['tiktok', 'instagram', 'facebook'];
+    const behaviors = persona.behaviors as { interests?: string[] } | null;
 
-    const result = await generateCreative(
-      {
-        name: persona.name,
-        demographics: persona.demographics as Record<string, unknown>,
-        psychographics: persona.psychographics as Record<string, unknown>,
-        behaviors: persona.behaviors as Record<string, unknown>,
-        recommendedMessaging: persona.description || undefined,
-      },
-      validated.prompt,
-      platforms
-    );
-
-    const firstVariant = result.variants[0];
-    await db
-      .update(creatives)
-      .set({
-        headline: firstVariant?.headline,
-        bodyCopy: firstVariant?.body,
-        status: 'approved',
-      })
-      .where(eq(creatives.id, creative.id));
+    generateCreative({
+      name: persona.name,
+      tagline: persona.tagline || '',
+      interests: behaviors?.interests || [],
+      prompt: validated.prompt,
+      platforms: validated.platforms,
+    }).then(async (result) => {
+      await db
+        .update(creatives)
+        .set({
+          status: 'completed',
+          variants: result.variants.map((v: Record<string, unknown>, i: number) => ({ id: i + 1, ...v })),
+        })
+        .where(eq(creatives.id, creative.id));
+    }).catch(async () => {
+      await db
+        .update(creatives)
+        .set({ status: 'failed' })
+        .where(eq(creatives.id, creative.id));
+    });
 
     return NextResponse.json({
-      data: {
-        creativeId: creative.id,
-        status: 'completed',
-        variants: result.variants,
-        visualDirection: result.visualDirection,
-      },
+      data: { creativeId: creative.id, status: 'generating', estimatedTime: 30 },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors,
-          },
-        },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } },
         { status: 400 }
       );
     }
-    console.error('Error generating creative:', error);
+    console.error('Creative generation error:', error);
     return NextResponse.json(
-      { error: { code: 'AI_ERROR', message: 'Failed to generate creative' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to generate creative' } },
       { status: 500 }
     );
   }

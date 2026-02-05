@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, creatives, audiences } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { creatives } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ creativeId: string }> }
 ) {
   try {
@@ -12,8 +13,7 @@ export async function GET(
     const [creative] = await db
       .select()
       .from(creatives)
-      .where(eq(creatives.id, creativeId))
-      .limit(1);
+      .where(eq(creatives.id, creativeId));
 
     if (!creative) {
       return NextResponse.json(
@@ -22,38 +22,10 @@ export async function GET(
       );
     }
 
-    let personaName = 'Unknown';
-    if (creative.audienceId) {
-      const [persona] = await db
-        .select({ name: audiences.name })
-        .from(audiences)
-        .where(eq(audiences.id, creative.audienceId))
-        .limit(1);
-      if (persona) {
-        personaName = persona.name;
-      }
-    }
-
-    return NextResponse.json({
-      data: {
-        id: creative.id,
-        type: creative.type,
-        status: creative.status,
-        title: creative.title,
-        headline: creative.headline,
-        bodyCopy: creative.bodyCopy,
-        contentUrl: creative.contentUrl,
-        thumbnailUrl: creative.thumbnailUrl,
-        aiPrompt: creative.aiPrompt,
-        aiGenerated: creative.aiGenerated,
-        personaName,
-        createdAt: creative.createdAt,
-      },
-    });
+    return NextResponse.json({ data: creative });
   } catch (error) {
-    console.error('Error fetching creative:', error);
     return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch creative' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch creative' } },
       { status: 500 }
     );
   }

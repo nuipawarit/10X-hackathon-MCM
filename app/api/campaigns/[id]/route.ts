@@ -1,31 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, campaigns, analytics, deployments, audiences } from '@/lib/db';
-import { eq, sql, and, gte, lte } from 'drizzle-orm';
-import { z } from 'zod';
-
-const updateCampaignSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  objective: z.enum(['awareness', 'consideration', 'conversion']).optional(),
-  status: z.enum(['draft', 'active', 'paused', 'completed']).optional(),
-  budget: z.number().positive().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { campaigns, analytics, creatives, deployments } from '@/lib/db/schema';
+import { eq, sql, asc } from 'drizzle-orm';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || '7';
 
     const [campaign] = await db
       .select()
       .from(campaigns)
-      .where(eq(campaigns.id, id))
-      .limit(1);
+      .where(eq(campaigns.id, id));
 
     if (!campaign) {
       return NextResponse.json(
@@ -34,173 +22,67 @@ export async function GET(
       );
     }
 
-    const metricsResult = await db
+    const trend = await db
       .select({
-        impressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
-        clicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
-        conversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+        date: analytics.date,
         spend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
         revenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
       })
       .from(analytics)
-      .innerJoin(deployments, eq(analytics.deploymentId, deployments.id))
-      .where(eq(deployments.campaignId, id));
+      .where(eq(analytics.campaignId, id))
+      .groupBy(analytics.date)
+      .orderBy(asc(analytics.date));
 
-    const metrics = metricsResult[0];
-    const spend = Number(metrics.spend) || 0;
-    const revenue = Number(metrics.revenue) || 0;
-    const conversions = Number(metrics.conversions) || 0;
-    const clicks = Number(metrics.clicks) || 0;
-    const impressions = Number(metrics.impressions) || 0;
+    const trendData = trend.map((t) => ({
+      date: t.date,
+      roas: Number(t.spend) > 0
+        ? Math.round((Number(t.revenue) / Number(t.spend)) * 10) / 10
+        : 0,
+    }));
 
-    const trendData = await db
+    const metrics = await db
       .select({
-        date: analytics.date,
-        roas: sql<number>`COALESCE(AVG(${analytics.roas}::numeric), 0)`,
-        spend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
-        conversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+        totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+        totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+        totalRevenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+        totalClicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
+        totalImpressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
       })
       .from(analytics)
-      .innerJoin(deployments, eq(analytics.deploymentId, deployments.id))
-      .where(eq(deployments.campaignId, id))
-      .groupBy(analytics.date)
-      .orderBy(analytics.date);
+      .where(eq(analytics.campaignId, id));
 
-    const personasCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(audiences)
-      .where(eq(audiences.campaignId, id));
+    const m = metrics[0];
+    const spend = Number(m.totalSpend);
+    const revenue = Number(m.totalRevenue);
 
-    const deploymentsData = await db
-      .select({
-        platform: deployments.platform,
-        status: deployments.status,
-        allocatedBudget: deployments.allocatedBudget,
-      })
-      .from(deployments)
-      .where(eq(deployments.campaignId, id));
+    const campaignCreatives = await db
+      .select()
+      .from(creatives)
+      .where(eq(creatives.campaignId, id));
 
     return NextResponse.json({
       data: {
         ...campaign,
         budget: Number(campaign.budget),
         metrics: {
-          impressions,
-          clicks,
-          conversions,
+          roas: spend > 0 ? Math.round((revenue / spend) * 10) / 10 : 0,
+          cpa: Number(m.totalConversions) > 0
+            ? Math.round((spend / Number(m.totalConversions)) * 100) / 100
+            : 0,
+          ctr: Number(m.totalImpressions) > 0
+            ? Math.round((Number(m.totalClicks) / Number(m.totalImpressions)) * 1000) / 10
+            : 0,
+          conversions: Number(m.totalConversions),
           spend,
           revenue,
-          ctr: impressions > 0 ? clicks / impressions : 0,
-          cpa: conversions > 0 ? spend / conversions : 0,
-          roas: spend > 0 ? revenue / spend : 0,
         },
-        trend: trendData.map((d) => ({
-          date: d.date,
-          roas: Number(d.roas),
-          spend: Number(d.spend),
-          conversions: Number(d.conversions),
-        })),
-        personasCount: Number(personasCount[0]?.count || 0),
-        deployments: deploymentsData.map((d) => ({
-          ...d,
-          allocatedBudget: Number(d.allocatedBudget),
-        })),
+        trend: trendData,
+        creatives: campaignCreatives,
       },
     });
   } catch (error) {
-    console.error('Error fetching campaign:', error);
     return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch campaign' } },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const validated = updateCampaignSchema.parse(body);
-
-    const [existing] = await db
-      .select()
-      .from(campaigns)
-      .where(eq(campaigns.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Campaign not found' } },
-        { status: 404 }
-      );
-    }
-
-    const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (validated.name) updateData.name = validated.name;
-    if (validated.objective) updateData.objective = validated.objective;
-    if (validated.status) updateData.status = validated.status;
-    if (validated.budget) updateData.budget = validated.budget.toString();
-    if (validated.startDate) updateData.startDate = validated.startDate;
-    if (validated.endDate) updateData.endDate = validated.endDate;
-
-    const [updated] = await db
-      .update(campaigns)
-      .set(updateData)
-      .where(eq(campaigns.id, id))
-      .returning();
-
-    return NextResponse.json({ data: updated });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors,
-          },
-        },
-        { status: 400 }
-      );
-    }
-    console.error('Error updating campaign:', error);
-    return NextResponse.json(
-      { error: { code: 'UPDATE_ERROR', message: 'Failed to update campaign' } },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-
-    const [existing] = await db
-      .select()
-      .from(campaigns)
-      .where(eq(campaigns.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Campaign not found' } },
-        { status: 404 }
-      );
-    }
-
-    await db.delete(campaigns).where(eq(campaigns.id, id));
-
-    return NextResponse.json({ data: { deleted: true } });
-  } catch (error) {
-    console.error('Error deleting campaign:', error);
-    return NextResponse.json(
-      { error: { code: 'DELETE_ERROR', message: 'Failed to delete campaign' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch campaign' } },
       { status: 500 }
     );
   }

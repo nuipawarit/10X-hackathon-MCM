@@ -1,66 +1,18 @@
-import { put, del, list, head } from '@vercel/blob';
+import { put, del, list } from '@vercel/blob';
 
-/**
- * Upload a creative asset to Vercel Blob storage
- */
-export async function uploadCreative(
-  file: File | Blob,
-  personaId: string,
-  filename: string
-): Promise<string> {
-  const path = `creatives/${personaId}/${filename}`;
-
-  const blob = await put(path, file, {
+export async function uploadCreativeImage(file: Buffer, filename: string) {
+  const blob = await put(`creatives/${filename}`, file, {
     access: 'public',
-    addRandomSuffix: true,
+    contentType: 'image/png',
   });
-
-  return blob.url;
+  return blob;
 }
 
-/**
- * Delete a creative asset from storage
- */
-export async function deleteCreative(url: string): Promise<void> {
+export async function deleteCreativeImage(url: string) {
   await del(url);
 }
 
-/**
- * List all creatives for a persona
- */
-export async function listCreatives(personaId: string) {
-  const { blobs } = await list({
-    prefix: `creatives/${personaId}/`,
-  });
-
+export async function listCreativeImages(prefix = 'creatives/') {
+  const { blobs } = await list({ prefix });
   return blobs;
-}
-
-/**
- * Check if a blob exists
- */
-export async function creativeExists(url: string): Promise<boolean> {
-  try {
-    await head(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Upload campaign report PDF
- */
-export async function uploadReport(
-  file: File | Blob,
-  campaignId: string
-): Promise<string> {
-  const timestamp = new Date().toISOString().split('T')[0];
-  const path = `reports/${campaignId}/${timestamp}-report.pdf`;
-
-  const blob = await put(path, file, {
-    access: 'public',
-  });
-
-  return blob.url;
 }

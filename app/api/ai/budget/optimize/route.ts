@@ -1,25 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, campaigns, deployments, analytics } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { campaigns, analytics, deployments } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { z } from 'zod';
 import { optimizeBudget } from '@/lib/ai/claude';
+import { optimizeBudgetSchema } from '@/lib/validations/schemas';
 
-const optimizeSchema = z.object({
-  campaignId: z.string().uuid(),
-  optimizationGoal: z.enum(['roas', 'cpa', 'reach']).optional(),
-  autoApply: z.boolean().optional(),
-});
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const validated = optimizeSchema.parse(body);
+    const validated = optimizeBudgetSchema.parse(body);
 
     const [campaign] = await db
       .select()
       .from(campaigns)
-      .where(eq(campaigns.id, validated.campaignId))
-      .limit(1);
+      .where(eq(campaigns.id, validated.campaignId));
 
     if (!campaign) {
       return NextResponse.json(
@@ -30,88 +24,38 @@ export async function POST(request: NextRequest) {
 
     const platformMetrics = await db
       .select({
-        platform: deployments.platform,
-        allocatedBudget: deployments.allocatedBudget,
-        spend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
-        revenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
-        conversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+        platform: analytics.platform,
+        totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+        totalRevenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+        totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
       })
-      .from(deployments)
-      .leftJoin(analytics, eq(analytics.deploymentId, deployments.id))
-      .where(eq(deployments.campaignId, validated.campaignId))
-      .groupBy(deployments.platform, deployments.allocatedBudget);
-
-    const platformData = platformMetrics.map((p) => {
-      const spend = Number(p.spend) || 0;
-      const revenue = Number(p.revenue) || 0;
-      const conversions = Number(p.conversions) || 0;
-      return {
-        name: p.platform,
-        currentAllocation: Number(p.allocatedBudget) || 0,
-        roas: spend > 0 ? revenue / spend : 0,
-        cpa: conversions > 0 ? spend / conversions : 0,
-        spend,
-        conversions,
-      };
-    });
-
-    if (platformData.length === 0) {
-      return NextResponse.json({
-        data: {
-          recommendationId: null,
-          currentState: {
-            totalBudget: Number(campaign.budget),
-            allocations: [],
-          },
-          recommendations: [],
-          expectedImpact: { roasChange: '0%', cpaChange: '0%' },
-          message: 'No active deployments to optimize',
-        },
-      });
-    }
+      .from(analytics)
+      .where(eq(analytics.campaignId, validated.campaignId))
+      .groupBy(analytics.platform);
 
     const result = await optimizeBudget({
+      name: campaign.name,
       totalBudget: Number(campaign.budget),
-      platforms: platformData,
-      targetRoas: 3,
-      targetCpa: 30,
+      platforms: platformMetrics.map((m) => ({
+        platform: m.platform || 'unknown',
+        spend: Number(m.totalSpend),
+        revenue: Number(m.totalRevenue),
+        conversions: Number(m.totalConversions),
+      })),
+      goal: validated.optimizationGoal,
     });
-
-    const recommendationId = crypto.randomUUID();
 
     return NextResponse.json({
       data: {
-        recommendationId,
-        currentState: {
-          totalBudget: Number(campaign.budget),
-          allocations: platformData.map((p) => ({
-            platform: p.name,
-            budget: p.currentAllocation,
-            roas: p.roas,
-          })),
-        },
+        campaignId: validated.campaignId,
         recommendations: result.recommendations,
-        expectedImpact: result.expectedImpact,
-        riskAssessment: result.riskAssessment,
-        alerts: result.alerts,
+        projectedMetrics: result.projectedMetrics,
       },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors,
-          },
-        },
-        { status: 400 }
-      );
-    }
-    console.error('Error optimizing budget:', error);
+    console.error('Budget optimization error:', error);
     return NextResponse.json(
-      { error: { code: 'AI_ERROR', message: 'Failed to optimize budget' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to optimize budget' } },
       { status: 500 }
     );
   }

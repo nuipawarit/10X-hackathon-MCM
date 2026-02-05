@@ -1,42 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, platformConnections } from '@/lib/db';
-
-const ALL_PLATFORMS = ['meta', 'google', 'tiktok', 'line', 'lemon8'] as const;
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { platformConnections } from '@/lib/db/schema';
 
 export async function GET() {
   try {
     const connections = await db.select().from(platformConnections);
 
-    const platformMap = new Map(
-      connections.map((c) => [c.platform, c])
-    );
-
-    const platforms = ALL_PLATFORMS.map((platform) => {
-      const connection = platformMap.get(platform);
+    const allPlatforms = ['meta', 'google', 'tiktok', 'line', 'lemon8'];
+    const result = allPlatforms.map((platform) => {
+      const connection = connections.find((c) => c.platform === platform);
       if (connection) {
-        return {
-          id: connection.id,
-          platform,
-          accountId: connection.accountId,
-          status: connection.status,
-          lastSyncAt: connection.lastSyncAt,
-        };
+        return connection;
       }
-      return {
-        platform,
-        status: 'not_connected',
-      };
+      return { platform, status: 'not_connected' as const };
     });
 
-    return NextResponse.json({
-      data: {
-        platforms,
-      },
-    });
+    return NextResponse.json({ data: result });
   } catch (error) {
-    console.error('Error fetching integrations:', error);
     return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch integrations' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch integrations' } },
       { status: 500 }
     );
   }

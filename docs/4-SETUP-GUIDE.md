@@ -1,197 +1,104 @@
 # MCM Setup Guide
 
-**Document ID:** SETUP-001
-**Version:** 1.0
+**Document ID:** SETUP-002
+**Version:** 2.0
 **Last Updated:** 2026-02-05
 **Source:** [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md)
 
 ---
 
-## Context
+## Prerequisites
 
-> **Reference:** Architecture "Tech Stack" และ "Project Structure"
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Node.js | 20+ | Runtime |
+| PostgreSQL | 15+ | Database |
+| pnpm | 8+ | Package manager |
 
-### Purpose
+## Quick Start
 
-Step-by-step guide สำหรับ developers ที่ต้องการ setup MCM locally โดยอ้างอิง Tech Stack จาก Architecture:
-
-| Layer | Technology | From Architecture |
-|-------|------------|-------------------|
-| **Frontend** | Next.js 15 (App Router) | Server components, SEO |
-| **Styling** | Tailwind CSS + shadcn/ui | Rapid development |
-| **Backend** | Next.js API Routes | Unified codebase |
-| **Database** | PostgreSQL (Vercel Postgres) | Strong consistency |
-| **ORM** | Drizzle ORM | Type-safe |
-| **AI** | Claude API (@anthropic-ai/sdk) | Reasoning, Analysis |
-
-### Prerequisites
-
-> **Reference:** Architecture "Tech Stack"
-
-| Requirement | Version | Purpose | Source |
-|-------------|---------|---------|--------|
-| Node.js | 20+ | Runtime | Next.js 15 requirement |
-| PostgreSQL | 15+ | Database | Architecture "Database" |
-| pnpm | 8+ | Package manager | Project standard |
-
----
-
-## Decision
-
-### Step 1: Clone & Install
-
-> **Reference:** Architecture "Project Structure"
+### 1. Install Dependencies
 
 ```bash
-git clone <repo-url>
-cd mcm-app
 pnpm install
 ```
 
-**Project Structure Preview:**
-```
-mcm-app/
-├── app/                    # Next.js App Router (Architecture)
-│   ├── (dashboard)/        # F1-F5 Features (PRD)
-│   └── api/                # API Routes
-├── components/             # UI Components
-├── features/               # 4 Core Modules (Business Plan)
-├── lib/                    # Utilities
-└── docs/                   # Documentation chain
-```
+### 2. Environment Variables
 
-### Step 2: Environment Setup
-
-> **Reference:** Architecture "Tech Stack" - Services
-
-Copy `.env.example` to `.env.local`:
 ```bash
 cp .env.example .env.local
 ```
 
-**Required Variables (Core):**
+Required variables:
 
-| Variable | Example | Module Reference |
-|----------|---------|------------------|
-| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/mcm` | Architecture "Database" |
-| `ANTHROPIC_API_KEY` | `sk-ant-xxx` | Architecture "AI" - Claude API |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | API Reference "Base URLs" |
+```env
+# Database (Vercel Postgres)
+DATABASE_URL=postgresql://user:password@host:5432/mcm
+POSTGRES_URL=postgresql://user:password@host:5432/mcm
 
-**Vercel Variables (Auto-provisioned):**
+# AI
+ANTHROPIC_API_KEY=sk-ant-...
 
-> **Reference:** Infrastructure document
+# Storage (Vercel Blob)
+BLOB_READ_WRITE_TOKEN=vercel_blob_...
 
-| Variable | Purpose | Module |
-|----------|---------|--------|
-| `POSTGRES_URL` | Vercel Postgres connection | Database |
-| `BLOB_READ_WRITE_TOKEN` | Creative assets storage | Creative Studio |
-| `KV_REST_API_URL` | Cache endpoint | AI Optimization |
-| `KV_REST_API_TOKEN` | Cache authentication | AI Optimization |
+# Cache (Vercel KV)
+KV_URL=redis://...
+KV_REST_API_URL=https://...
+KV_REST_API_TOKEN=...
+KV_REST_API_READ_ONLY_TOKEN=...
+```
 
-### Step 3: Database Setup
-
-> **Reference:** Architecture "Database Schema"
+### 3. Database Setup
 
 ```bash
-# Generate migrations from Drizzle schema
-pnpm db:generate
-
 # Push schema to database
 pnpm db:push
 
-# Seed demo data (campaigns, personas)
+# Seed demo data
 pnpm db:seed
 ```
 
-**Tables Created (from Architecture):**
-
-| Table | Purpose | Module |
-|-------|---------|--------|
-| `users` | Demo users, Auth | Core |
-| `platform_connections` | API credentials | Integration Mesh |
-| `campaigns` | Campaign metadata | Core |
-| `audiences` | AI-generated personas | Intelligent Targeting |
-| `creatives` | Generated assets | Creative Studio |
-| `deployments` | Ad deployment status | Integration Mesh |
-| `analytics` | Performance metrics | AI Optimization |
-| `optimization_logs` | AI decision audit | AI Optimization |
-
-### Step 4: Run Development Server
+### 4. Start Development
 
 ```bash
 pnpm dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000)
 
-### Step 5: Demo Users
+## Available Scripts
 
-> **Reference:** PRD "Target Users"
+| Script | Command | Description |
+|--------|---------|-------------|
+| `dev` | `next dev` | Start development server |
+| `build` | `next build` | Production build |
+| `start` | `next start` | Start production server |
+| `db:push` | `drizzle-kit push` | Push schema to database |
+| `db:seed` | `tsx lib/db/seed.ts` | Seed demo data |
+| `db:studio` | `drizzle-kit studio` | Open Drizzle Studio |
 
-| Email | Password | Role | User Type (PRD) |
-|-------|----------|------|-----------------|
-| demo@mcm.app | demo123 | Admin | Marketing Manager |
-| agency@mcm.app | agency123 | Agency | Agency Owner |
-| viewer@mcm.app | view123 | Viewer | Media Buyer |
+## Demo Data
 
-### Step 6: Verify 5 Features
+After seeding, the following demo data is available:
 
-> **Reference:** PRD "Core Features (MVP)"
+| Entity | Count | Details |
+|--------|-------|---------|
+| Users | 1 | demo@mcm.app |
+| Campaigns | 2 | Summer Skincare Launch, Q1 Brand Awareness |
+| Platform Connections | 5 | Meta, Google, TikTok (active), LINE, Lemon8 (not_connected) |
+| Audiences | 2 | Skincare Geeks (92% intent), City Commuter (88% intent) |
+| Creatives | 6 | 3 per persona |
+| Analytics | 14 | 7 days x 2 campaigns |
+| Deployments | 4 | TikTok, Lemon8, Instagram, Facebook |
 
-| Route | Feature | Module | Verification |
-|-------|---------|--------|--------------|
-| `/` | F1: Dashboard | AI Optimization Core | ROAS metrics displayed |
-| `/audience` | F2: Audience Discovery | Intelligent Targeting | Personas generated |
-| `/creative` | F3: Creative Studio | Generative Creative | Create ad copy |
-| `/distribution` | F4: Distribution | Integration Mesh | Platform flow visible |
-| `/results` | F5: Results | AI Optimization Core | Recommendations shown |
+## Project Structure
 
----
-
-## Consequences
-
-### npm Scripts
-
-> **Reference:** Architecture "Tech Stack"
-
-| Script | Description | Related |
-|--------|-------------|---------|
-| `pnpm dev` | Start development server | Next.js 15 |
-| `pnpm build` | Build for production | Vercel deployment |
-| `pnpm start` | Start production server | - |
-| `pnpm lint` | Run ESLint | Code quality |
-| `pnpm db:generate` | Generate Drizzle migrations | Architecture "ORM" |
-| `pnpm db:push` | Push schema to database | Architecture "Database" |
-| `pnpm db:seed` | Seed demo data | Testing |
-| `pnpm db:studio` | Open Drizzle Studio | Database inspection |
-
-### Troubleshooting Guide
-
-| Problem | Cause | Solution | Related Module |
-|---------|-------|----------|----------------|
-| Database connection error | PostgreSQL not running | Start PostgreSQL service | Core |
-| Invalid DATABASE_URL | Wrong format | Use `postgresql://user:pass@host:5432/db` | Core |
-| AI API errors | Invalid key | Verify ANTHROPIC_API_KEY | AI modules |
-| Port 3000 in use | Other process | Kill process or use `PORT=3001 pnpm dev` | - |
-| Build errors | Missing deps | Run `pnpm install` again | - |
-| Platform API errors | Missing tokens | Check Integration Mesh env vars | Integration Mesh |
-
-### Verification Checklist
-
-- [ ] `pnpm dev` starts without errors
-- [ ] Can access http://localhost:3000
-- [ ] Can login with demo user
-- [ ] F1: Dashboard loads with mock ROAS data
-- [ ] F2: Audience page shows personas
-- [ ] F3: Creative Studio can generate copy
-- [ ] F4: Distribution flow is visible
-- [ ] F5: Results shows optimization recommendations
+See [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md) for full project structure.
 
 ---
 
 ## References
 
-- **Source Documents:**
-  - [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md) - Tech Stack, Project Structure, Database Schema
-  - [`docs/1-PRD.md`](./1-PRD.md) - Features, Target Users
-- **Next Document:** [`docs/5-INFRASTRUCTURE.md`](./5-INFRASTRUCTURE.md)
+- [`docs/2-ARCHITECTURE.md`](./2-ARCHITECTURE.md) - Tech stack, Project structure
+- [`docs/5-INFRASTRUCTURE.md`](./5-INFRASTRUCTURE.md) - Deployment

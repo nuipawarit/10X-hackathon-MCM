@@ -1,137 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db, campaigns, analytics, deployments, audiences } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { campaigns, analytics } from '@/lib/db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
-import { z } from 'zod';
+import { createCampaignSchema } from '@/lib/validations/schemas';
 
-const createCampaignSchema = z.object({
-  name: z.string().min(1).max(255),
-  objective: z.enum(['awareness', 'consideration', 'conversion']),
-  budget: z.number().positive(),
-  startDate: z.string(),
-  endDate: z.string(),
-});
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    const campaignList = await db
-      .select({
-        id: campaigns.id,
-        name: campaigns.name,
-        objective: campaigns.objective,
-        status: campaigns.status,
-        budget: campaigns.budget,
-        startDate: campaigns.startDate,
-        endDate: campaigns.endDate,
-        createdAt: campaigns.createdAt,
-      })
+    const allCampaigns = await db
+      .select()
       .from(campaigns)
       .orderBy(desc(campaigns.createdAt))
       .limit(limit)
       .offset(offset);
 
     const campaignsWithMetrics = await Promise.all(
-      campaignList.map(async (campaign) => {
-        const metricsResult = await db
+      allCampaigns.map(async (campaign) => {
+        const metrics = await db
           .select({
-            impressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
-            clicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
-            conversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
-            spend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
-            revenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
+            totalImpressions: sql<number>`COALESCE(SUM(${analytics.impressions}), 0)`,
+            totalClicks: sql<number>`COALESCE(SUM(${analytics.clicks}), 0)`,
+            totalConversions: sql<number>`COALESCE(SUM(${analytics.conversions}), 0)`,
+            totalSpend: sql<number>`COALESCE(SUM(${analytics.spend}::numeric), 0)`,
+            totalRevenue: sql<number>`COALESCE(SUM(${analytics.revenue}::numeric), 0)`,
           })
           .from(analytics)
-          .innerJoin(deployments, eq(analytics.deploymentId, deployments.id))
-          .where(eq(deployments.campaignId, campaign.id));
+          .where(eq(analytics.campaignId, campaign.id));
 
-        const metrics = metricsResult[0];
-        const spend = Number(metrics.spend) || 0;
-        const revenue = Number(metrics.revenue) || 0;
-        const conversions = Number(metrics.conversions) || 0;
-        const clicks = Number(metrics.clicks) || 0;
-        const impressions = Number(metrics.impressions) || 0;
+        const m = metrics[0];
+        const spend = Number(m.totalSpend);
+        const revenue = Number(m.totalRevenue);
+        const clicks = Number(m.totalClicks);
+        const impressions = Number(m.totalImpressions);
 
         return {
           ...campaign,
           budget: Number(campaign.budget),
           metrics: {
-            impressions,
-            clicks,
-            conversions,
+            roas: spend > 0 ? Math.round((revenue / spend) * 10) / 10 : 0,
+            cpa: Number(m.totalConversions) > 0
+              ? Math.round((spend / Number(m.totalConversions)) * 100) / 100
+              : 0,
+            ctr: impressions > 0
+              ? Math.round((clicks / impressions) * 1000) / 10
+              : 0,
+            conversions: Number(m.totalConversions),
             spend,
             revenue,
-            ctr: impressions > 0 ? clicks / impressions : 0,
-            cpa: conversions > 0 ? spend / conversions : 0,
-            roas: spend > 0 ? revenue / spend : 0,
           },
         };
       })
     );
 
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(campaigns);
-    const total = Number(totalResult[0]?.count || 0);
+    const total = await db.select({ count: sql<number>`count(*)` }).from(campaigns);
 
     return NextResponse.json({
       data: campaignsWithMetrics,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total: Number(total[0].count) },
     });
   } catch (error) {
-    console.error('Error fetching campaigns:', error);
     return NextResponse.json(
-      { error: { code: 'FETCH_ERROR', message: 'Failed to fetch campaigns' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch campaigns' } },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
     const validated = createCampaignSchema.parse(body);
 
-    const [newCampaign] = await db
+    const [campaign] = await db
       .insert(campaigns)
       .values({
         name: validated.name,
         objective: validated.objective,
         budget: validated.budget.toString(),
-        startDate: validated.startDate,
-        endDate: validated.endDate,
-        status: 'draft',
+        startDate: validated.startDate || null,
+        endDate: validated.endDate || null,
       })
       .returning();
 
-    return NextResponse.json(
-      { data: { id: newCampaign.id, status: newCampaign.status } },
-      { status: 201 }
-    );
+    return NextResponse.json({ data: campaign }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors,
-          },
-        },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } },
         { status: 400 }
       );
     }
-    console.error('Error creating campaign:', error);
     return NextResponse.json(
-      { error: { code: 'CREATE_ERROR', message: 'Failed to create campaign' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create campaign' } },
       { status: 500 }
     );
   }

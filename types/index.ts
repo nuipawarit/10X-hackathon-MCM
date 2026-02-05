@@ -1,266 +1,133 @@
-// ============================================
-// Campaign Types
-// ============================================
+export type UserRole = 'admin' | 'manager' | 'viewer';
 
-export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
 export type CampaignObjective = 'awareness' | 'consideration' | 'conversion';
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
 
-export interface Campaign {
+export type CreativeType = 'image' | 'video' | 'copy';
+export type CreativeStatus = 'generating' | 'completed' | 'failed';
+
+export type DeploymentStatus = 'pending' | 'deploying' | 'active' | 'paused' | 'completed';
+
+export type ConnectionStatus = 'active' | 'expired' | 'not_connected';
+
+export type Platform = 'meta' | 'google' | 'tiktok' | 'line' | 'lemon8';
+
+export interface CampaignMetrics {
+  roas: number;
+  cpa: number;
+  ctr: number;
+  conversions: number;
+  spend: number;
+  revenue: number;
+}
+
+export interface CampaignWithMetrics {
   id: string;
-  userId: string;
   name: string;
   objective: CampaignObjective;
   status: CampaignStatus;
   budget: number;
-  startDate: Date;
-  endDate: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  startDate: string | null;
+  endDate: string | null;
+  metrics: CampaignMetrics;
 }
 
-// ============================================
-// Platform Types
-// ============================================
+export interface TrendPoint {
+  date: string;
+  roas: number;
+}
 
-export type Platform = 'meta' | 'google' | 'tiktok' | 'line' | 'lemon8';
-export type ConnectionStatus = 'active' | 'inactive' | 'error';
-
-export interface PlatformConnection {
+export interface CreativePerformance {
   id: string;
-  userId: string;
-  platform: Platform;
-  accountId: string;
-  status: ConnectionStatus;
-  lastSyncAt: Date;
+  name: string;
+  platform: string;
+  platformColor: string;
+  status: string;
+  statusColor: string;
+  cpa: number;
+  ctr: number;
+  conversions: number;
+  thumbnailUrl?: string;
 }
 
-// ============================================
-// Audience Types
-// ============================================
-
-export interface Demographics {
+export interface PersonaDemographics {
   ageRange: string;
-  genderSplit: {
-    male: number;
-    female: number;
-  };
-  locations: string[];
-  incomeLevel?: string;
+  education: string;
+  lifestyle: string;
 }
 
-export interface Psychographics {
+export interface PersonaPsychographics {
   values: string[];
   painPoints: string[];
   motivations: string[];
-  lifestyle?: string;
 }
 
-export interface Behaviors {
-  platforms: Platform[];
-  contentPreferences: string[];
+export interface PersonaBehaviors {
+  platforms: string[];
+  interests: string[];
   purchaseTriggers: string[];
-  buyingFrequency?: string;
 }
 
 export interface Persona {
   id: string;
-  campaignId: string;
   name: string;
-  tagline?: string;
-  description: string;
-  demographics: Demographics;
-  psychographics?: Psychographics;
-  behaviors?: Behaviors;
-  interests: string[];
+  tagline: string;
   intentScore: number;
-  segmentSize?: number;
+  demographics: PersonaDemographics;
+  psychographics: PersonaPsychographics;
+  behaviors: PersonaBehaviors;
+  recommendedMessaging: string;
+  tags: string[];
   aiGenerated: boolean;
-  recommendedMessaging?: string;
-  creativeDirection?: string;
-}
-
-// ============================================
-// Creative Types
-// ============================================
-
-export type CreativeType = 'image' | 'video' | 'copy';
-export type CreativeStatus = 'draft' | 'approved' | 'deployed';
-
-export interface Creative {
-  id: string;
-  campaignId: string;
-  audienceId: string;
-  type: CreativeType;
-  title: string;
-  headline?: string;
-  bodyCopy?: string;
-  contentUrl: string;
-  thumbnailUrl: string;
-  aiPrompt?: string;
-  aiGenerated: boolean;
-  status: CreativeStatus;
 }
 
 export interface CreativeVariant {
+  id: number;
+  title: string;
   headline: string;
-  bodyCopy: string;
-  visualDirection: string;
-  platform: Platform;
+  body: string;
+  cta: string;
+  platform: string;
+  imageUrl?: string;
 }
 
-// ============================================
-// Deployment Types
-// ============================================
-
-export type DeploymentStatus = 'pending' | 'active' | 'paused' | 'completed';
-
-export interface Deployment {
+export interface Creative {
   id: string;
-  campaignId: string;
-  creativeId: string;
-  audienceId: string;
-  platform: Platform;
-  platformCampaignId?: string;
-  allocatedBudget: number;
-  status: DeploymentStatus;
-  deployedAt?: Date;
-}
-
-// ============================================
-// Analytics Types
-// ============================================
-
-export interface CampaignMetrics {
-  impressions: number;
-  clicks: number;
-  conversions: number;
-  spend: number;
-  revenue: number;
-  ctr: number;
-  cpa: number;
-  roas: number;
-}
-
-export interface AnalyticsData extends CampaignMetrics {
-  id: string;
-  deploymentId: string;
-  date: Date;
-}
-
-export interface PerformanceTrend {
-  date: Date;
-  roas: number;
-  spend: number;
-  conversions: number;
-}
-
-// ============================================
-// AI Types
-// ============================================
-
-export type OptimizationActionType =
-  | 'budget_reallocation'
-  | 'bid_adjustment'
-  | 'creative_refresh'
-  | 'pause_campaign';
-
-export type Severity = 'low' | 'medium' | 'high' | 'critical';
-
-export interface OptimizationRecommendation {
-  actionType: OptimizationActionType;
-  previousState: Record<string, unknown>;
-  newState: Record<string, unknown>;
-  reasoning: string;
-  expectedImpact: {
-    roasChange: number;
-    cpaChange: number;
-  };
-}
-
-export interface DiagnosisResult {
-  diagnosis: string;
-  severity: Severity;
-  findings: {
-    issue: string;
-    evidence: string;
-    impact: string;
-  }[];
-  recommendations: {
-    action: string;
-    priority: number;
-    expectedImpact: string;
-  }[];
-  predictedImprovement: number;
-}
-
-export interface BudgetAllocation {
-  platform: Platform;
-  previousBudget: number;
-  newBudget: number;
-  changePercent: number;
-}
-
-export interface BudgetOptimizationResult {
-  newAllocations: BudgetAllocation[];
-  reasoning: string;
-  riskAssessment: 'low' | 'medium' | 'high';
-  expectedImpact: {
-    roasChange: number;
-    cpaChange: number;
-    projectedConversions: number;
-  };
-  alerts: {
-    type: string;
-    platform: Platform;
-    message: string;
-  }[];
-}
-
-// ============================================
-// API Request/Response Types
-// ============================================
-
-export interface PersonaGenerationRequest {
-  campaignId: string;
-  productCategory?: string;
-  dataSources: Platform[];
-  constraints?: {
-    minSegmentSize?: number;
-    maxPersonas?: number;
-  };
-}
-
-export interface CreativeGenerationRequest {
   personaId: string;
   type: CreativeType;
-  prompt: string;
-  platforms?: Platform[];
+  status: CreativeStatus;
+  theme: string;
+  variants: CreativeVariant[];
+  aiGenerated: boolean;
 }
 
-export interface BudgetOptimizationRequest {
-  campaignId: string;
-  optimizationGoal: 'roas' | 'cpa' | 'reach';
-  constraints?: {
-    minPlatformBudget?: number;
-    maxDailyChange?: number;
-  };
+export interface PlatformConnection {
+  id: string;
+  platform: Platform;
+  accountId: string | null;
+  status: ConnectionStatus;
+  lastSyncAt: string | null;
 }
 
-export interface ApiResponse<T> {
-  data: T;
-  success: boolean;
-  error?: {
-    code: string;
-    message: string;
-  };
+export interface DeploymentSummary {
+  totalAdSets: number;
+  totalPlatforms: number;
+  estimatedReach: string;
+  totalBudget: number;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+export interface OptimizationRecommendation {
+  id: string;
+  action: string;
+  platform: string;
+  currentBudget: number;
+  recommendedBudget: number;
+  reasoning: string;
+  expectedImpact: string;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: { field: string; message: string }[];
 }
