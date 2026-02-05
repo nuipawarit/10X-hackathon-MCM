@@ -13,7 +13,9 @@
       "WebSearch",
       "WebFetch(domain:ai-sdk.dev)",
       "Bash(ls:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:ai-gateway.vercel.sh)"
     ]
   }
 }

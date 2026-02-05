@@ -1,11 +1,30 @@
-import Anthropic from '@anthropic-ai/sdk';
+const MODEL = 'google/gemini-2.5-flash-lite';
 
-const MODEL = 'anthropic/claude-sonnet-4.5';
+async function callAI(system: string, userMessage: string): Promise<string> {
+  const res = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 2000,
+    }),
+  });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-  baseURL: 'https://ai-gateway.vercel.sh',
-});
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`AI request failed (${res.status}): ${errText}`);
+  }
+
+  const json = await res.json();
+  return json.choices[0].message.content;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseAIResponse(text: string): any {
@@ -33,10 +52,8 @@ export async function analyzeAudience(campaignData: {
   objective: string;
   budget: number;
 }) {
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
-    system: `You are an expert audience analyst for digital marketing.
+  const text = await callAI(
+    `You are an expert audience analyst for digital marketing.
 Analyze the campaign data and generate 2-5 detailed personas.
 
 Each persona must include:
@@ -50,19 +67,13 @@ Each persona must include:
 - tags: 3-5 keyword tags
 
 Return ONLY valid JSON array of personas. No markdown or explanation.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Campaign: ${campaignData.name}
+    `Campaign: ${campaignData.name}
 Objective: ${campaignData.objective}
 Budget: $${campaignData.budget}
 
 Generate audience personas for this campaign.`,
-      },
-    ],
-  });
+  );
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
   return parseAIResponse(text);
 }
 
@@ -73,10 +84,8 @@ export async function generateCreative(personaData: {
   prompt: string;
   platforms: string[];
 }) {
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
-    system: `You are a creative director for digital advertising.
+  const text = await callAI(
+    `You are a creative director for digital advertising.
 Generate ad copy variants tailored to the target persona.
 
 For each variant, provide:
@@ -93,19 +102,13 @@ Return ONLY valid JSON object with:
 }
 
 Generate 3 variants. No markdown or explanation.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Persona: ${personaData.name}
+    `Persona: ${personaData.name}
 Description: ${personaData.tagline}
 Interests: ${personaData.interests.join(', ')}
 Platforms: ${personaData.platforms.join(', ')}
 Direction: ${personaData.prompt}`,
-      },
-    ],
-  });
+  );
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
   return parseAIResponse(text);
 }
 
@@ -115,10 +118,8 @@ export async function optimizeBudget(campaignData: {
   platforms: { platform: string; spend: number; revenue: number; conversions: number }[];
   goal: string;
 }) {
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
-    system: `You are a budget optimization expert for digital advertising.
+  const text = await callAI(
+    `You are a budget optimization expert for digital advertising.
 Analyze platform performance and recommend budget reallocation.
 
 For each recommendation, provide:
@@ -136,10 +137,7 @@ Return ONLY valid JSON object with:
 }
 
 No markdown or explanation.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Campaign: ${campaignData.name}
+    `Campaign: ${campaignData.name}
 Total Budget: $${campaignData.totalBudget}
 Optimization Goal: ${campaignData.goal}
 
@@ -147,10 +145,7 @@ Platform Performance:
 ${campaignData.platforms.map((p) => `- ${p.platform}: Spend $${p.spend}, Revenue $${p.revenue}, Conversions ${p.conversions}`).join('\n')}
 
 Recommend budget reallocation.`,
-      },
-    ],
-  });
+  );
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
   return parseAIResponse(text);
 }

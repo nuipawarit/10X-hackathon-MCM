@@ -10,7 +10,7 @@ export async function generateAdImage(prompt: string): Promise<Buffer> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'bfl/flux-2-pro',
+        model: 'bfl/flux-pro-1.1',
         prompt,
         n: 1,
       }),
