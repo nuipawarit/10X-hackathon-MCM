@@ -59,7 +59,7 @@ export async function getDailyPlatformBreakdown(campaignId: string) {
     if (!row.platform) continue;
     const day = new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (!dayMap.has(day)) {
-      dayMap.set(day, { meta: 0, google: 0, tiktok: 0, line: 0, lemon8: 0, shopee: 0, lazada: 0, instagram: 0, facebook: 0, totalSpend: 0, totalRevenue: 0 });
+      dayMap.set(day, { meta: 0, google: 0, tiktok: 0, line: 0, lemon8: 0, shopee: 0, lazada: 0, totalSpend: 0, totalRevenue: 0 });
     }
     const entry = dayMap.get(day)!;
     const spend = Number(row.spend);
@@ -78,8 +78,6 @@ export async function getDailyPlatformBreakdown(campaignId: string) {
     lemon8: data.lemon8,
     shopee: data.shopee,
     lazada: data.lazada,
-    instagram: data.instagram,
-    facebook: data.facebook,
     roas: data.totalSpend > 0 ? Math.round((data.totalRevenue / data.totalSpend) * 10) / 10 : 0,
   }));
 }

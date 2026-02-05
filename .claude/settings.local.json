@@ -9,7 +9,10 @@
       "Bash(npx drizzle-kit push:*)",
       "Bash(npm run build:*)",
       "Bash(grep:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "WebSearch",
+      "WebFetch(domain:ai-sdk.dev)",
+      "Bash(ls:*)"
     ]
   }
 }

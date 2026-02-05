@@ -116,7 +116,7 @@ export async function seedDatabase() {
         motivations: ['Quick results', 'Multi-tasking products'],
       },
       behaviors: {
-        platforms: ['Instagram', 'Facebook'],
+        platforms: ['Meta', 'Shopee'],
         interests: ['Urban Lifestyle', 'Wellness', 'Productivity'],
         purchaseTriggers: ['Before/after speed', 'Convenience packaging'],
       },
@@ -154,7 +154,7 @@ export async function seedDatabase() {
       purchaseFrequency: '2.8',
       demographics: { segment: 'Repeat buyers', avgAge: '32' },
       psychographics: { motivations: ['Brand loyalty', 'Product satisfaction'] },
-      behaviors: { platforms: ['Instagram', 'LINE'], interests: ['Skincare routines', 'Reviews'] },
+      behaviors: { platforms: ['Meta', 'LINE'], interests: ['Skincare routines', 'Reviews'] },
       recommendedMessaging: 'Cross-sell and loyalty program promotions',
     },
     {
@@ -168,7 +168,7 @@ export async function seedDatabase() {
       purchaseFrequency: '3.2',
       demographics: { segment: 'Premium buyers', avgAge: '35' },
       psychographics: { motivations: ['Exclusivity', 'Premium quality'] },
-      behaviors: { platforms: ['Instagram', 'Lemon8'], interests: ['Luxury skincare', 'Exclusive launches'] },
+      behaviors: { platforms: ['Meta', 'Lemon8'], interests: ['Luxury skincare', 'Exclusive launches'] },
       recommendedMessaging: 'Exclusive VIP offers and early access',
     },
     {
@@ -182,7 +182,7 @@ export async function seedDatabase() {
       purchaseFrequency: '0.5',
       demographics: { segment: 'Lapsed buyers', avgAge: '30' },
       psychographics: { motivations: ['Re-engagement', 'Better alternatives'] },
-      behaviors: { platforms: ['Facebook', 'Lazada'], interests: ['Competitor brands', 'Price comparison'] },
+      behaviors: { platforms: ['Google', 'Lazada'], interests: ['Competitor brands', 'Price comparison'] },
       recommendedMessaging: 'Win-back campaigns with personalized incentives',
     },
   ];
@@ -222,9 +222,9 @@ export async function seedDatabase() {
       status: 'completed' as const,
       prompt: 'Urban lifestyle skincare',
       variants: JSON.stringify([
-        { id: 1, title: 'Cafe Moment', headline: 'Skincare On The Go', body: 'Your 2-minute morning routine', cta: 'Shop Now', platform: 'instagram' },
-        { id: 2, title: 'City Lifestyle', headline: 'Urban Shield', body: 'Protection against city pollution', cta: 'Discover', platform: 'instagram' },
-        { id: 3, title: 'On-the-Go', headline: 'Quick & Effective', body: 'Multi-tasking skincare for busy days', cta: 'Get Yours', platform: 'facebook' },
+        { id: 1, title: 'Cafe Moment', headline: 'Skincare On The Go', body: 'Your 2-minute morning routine', cta: 'Shop Now', platform: 'meta' },
+        { id: 2, title: 'City Lifestyle', headline: 'Urban Shield', body: 'Protection against city pollution', cta: 'Discover', platform: 'meta' },
+        { id: 3, title: 'On-the-Go', headline: 'Quick & Effective', body: 'Multi-tasking skincare for busy days', cta: 'Get Yours', platform: 'shopee' },
       ]),
       businessGoal: 'new',
       targetPersonaId: persona2.id,
@@ -269,24 +269,24 @@ export async function seedDatabase() {
     {
       campaignId: campaign1.id,
       creativeId: insertedCreatives[1].id,
-      platform: 'instagram',
+      platform: 'meta',
       budget: '2500',
       status: 'active' as const,
       estimatedReach: '520K',
-      aiRecommendedPlatforms: JSON.stringify(['instagram', 'facebook']),
+      aiRecommendedPlatforms: JSON.stringify(['meta', 'shopee']),
       confidenceScore: '90',
-      recommendationReason: 'Instagram Stories and Reels perform well for lifestyle-focused urban audiences. High reach among 28-45 professionals.',
+      recommendationReason: 'Meta platforms perform well for lifestyle-focused urban audiences. High reach among 28-45 professionals.',
     },
     {
       campaignId: campaign1.id,
       creativeId: insertedCreatives[1].id,
-      platform: 'facebook',
+      platform: 'google',
       budget: '2500',
       status: 'active' as const,
       estimatedReach: '380K',
-      aiRecommendedPlatforms: JSON.stringify(['instagram', 'facebook']),
+      aiRecommendedPlatforms: JSON.stringify(['meta', 'google']),
       confidenceScore: '85',
-      recommendationReason: 'Facebook retargeting is effective for commuter demographics. Good for building awareness and driving conversions.',
+      recommendationReason: 'Google Ads retargeting is effective for commuter demographics. Good for building awareness and driving conversions.',
     },
     {
       campaignId: campaign1.id,
@@ -318,7 +318,7 @@ export async function seedDatabase() {
     insertedDeployments.push(dep);
   }
 
-  console.log('Created deployments with AI recommendations (6 deployments, 6 platforms)');
+  console.log('Created deployments with AI recommendations (6 deployments)');
 
   // --- Analytics: 7 days × 9 platforms ---
   const baseDate = new Date('2026-01-28');
@@ -354,41 +354,16 @@ export async function seedDatabase() {
       date: dateStr,
     });
 
-    // Instagram
+    // Meta
     await db.insert(schema.analytics).values({
       campaignId: campaign1.id,
       deploymentId: insertedDeployments[2].id,
-      platform: 'instagram',
-      impressions: Math.floor(18000 * decline),
-      clicks: Math.floor(540 * decline),
-      conversions: Math.floor(32 * decline),
-      spend: (280 * decline).toFixed(2),
-      revenue: (840 * decline * (1 - i * 0.06)).toFixed(2),
-      date: dateStr,
-    });
-
-    // Facebook
-    await db.insert(schema.analytics).values({
-      campaignId: campaign1.id,
-      deploymentId: insertedDeployments[3].id,
-      platform: 'facebook',
-      impressions: Math.floor(12000 * decline),
-      clicks: Math.floor(96 * decline),
-      conversions: Math.floor(6 * decline),
-      spend: (220 * decline).toFixed(2),
-      revenue: (330 * decline * (1 - i * 0.1)).toFixed(2),
-      date: dateStr,
-    });
-
-    // Meta (aggregate)
-    await db.insert(schema.analytics).values({
-      campaignId: campaign1.id,
       platform: 'meta',
-      impressions: Math.floor(10000 * decline),
-      clicks: Math.floor(350 * decline),
-      conversions: Math.floor(22 * decline),
-      spend: (200 * decline).toFixed(2),
-      revenue: (680 * decline * (1 - i * 0.05)).toFixed(2),
+      impressions: Math.floor(28000 * decline),
+      clicks: Math.floor(636 * decline),
+      conversions: Math.floor(38 * decline),
+      spend: (500 * decline).toFixed(2),
+      revenue: (1520 * decline * (1 - i * 0.05)).toFixed(2),
       date: dateStr,
     });
 
@@ -443,7 +418,7 @@ export async function seedDatabase() {
     });
   }
 
-  console.log('Created analytics data (7 days × 9 platform entries)');
+  console.log('Created analytics data (7 days × 7 platform entries)');
 
   await db.insert(schema.optimizationLogs).values({
     campaignId: campaign1.id,
@@ -459,10 +434,10 @@ export async function seedDatabase() {
   await db.insert(schema.optimizationLogs).values({
     campaignId: campaign1.id,
     action: 'decrease_budget',
-    platform: 'facebook',
+    platform: 'lazada',
     previousBudget: '2500',
     newBudget: '1500',
-    reasoning: 'Facebook ROAS declining -47% over 7 days, creative fatigue detected',
+    reasoning: 'Lazada ROAS declining -47% over 7 days, creative fatigue detected',
     applied: true,
     appliedAt: new Date(),
   });

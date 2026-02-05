@@ -35,7 +35,7 @@ export async function generateAndSaveCreative(request: GenerateCreativeRequest) 
       tagline: request.personaDescription,
       interests: request.interests,
       prompt: request.campaignObjective,
-      platforms: ['tiktok', 'instagram', 'facebook'],
+      platforms: ['tiktok', 'meta', 'lemon8'],
     });
 
     const [updated] = await db.update(creatives)

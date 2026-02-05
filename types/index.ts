@@ -10,7 +10,7 @@ export type DeploymentStatus = 'pending' | 'deploying' | 'active' | 'paused' | '
 
 export type ConnectionStatus = 'active' | 'expired' | 'not_connected';
 
-export type Platform = 'meta' | 'google' | 'tiktok' | 'line' | 'lemon8';
+export type Platform = 'meta' | 'google' | 'tiktok' | 'shopee' | 'lazada' | 'line' | 'lemon8';
 
 export interface CampaignMetrics {
   roas: number;

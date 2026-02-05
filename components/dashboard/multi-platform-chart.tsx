@@ -12,8 +12,6 @@ interface ChartDataPoint {
   lemon8: number;
   shopee: number;
   lazada: number;
-  instagram: number;
-  facebook: number;
   roas: number;
 }
 
@@ -22,7 +20,7 @@ interface MultiPlatformChartProps {
   activePlatforms: string[];
 }
 
-const platformKeys = ['meta', 'google', 'tiktok', 'line', 'lemon8', 'shopee', 'lazada', 'instagram', 'facebook'] as const;
+const platformKeys = ['meta', 'google', 'tiktok', 'shopee', 'lazada', 'line', 'lemon8'] as const;
 
 export function MultiPlatformChart({ data, activePlatforms }: MultiPlatformChartProps) {
   return (

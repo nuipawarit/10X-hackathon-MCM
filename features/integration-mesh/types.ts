@@ -1,4 +1,4 @@
-export type PlatformName = 'meta' | 'google' | 'tiktok' | 'line' | 'lemon8';
+export type PlatformName = 'meta' | 'google' | 'tiktok' | 'shopee' | 'lazada' | 'line' | 'lemon8';
 
 export interface PlatformConfig {
   name: PlatformName;
@@ -36,9 +36,11 @@ export interface DeploymentResult {
 }
 
 export const PLATFORM_CONFIGS: PlatformConfig[] = [
+  { name: 'meta', displayName: 'Meta', logo: 'M', color: '#1877F2', capabilities: ['video', 'image', 'story', 'carousel'] },
+  { name: 'google', displayName: 'Google Ads', logo: 'G', color: '#EA4335', capabilities: ['video', 'image', 'carousel'] },
   { name: 'tiktok', displayName: 'TikTok', logo: 'TT', color: '#000000', capabilities: ['video', 'image', 'carousel'] },
-  { name: 'lemon8', displayName: 'Lemon8', logo: 'L8', color: '#FFB800', capabilities: ['image', 'carousel'] },
-  { name: 'meta', displayName: 'Instagram', logo: 'IG', color: '#E1306C', capabilities: ['video', 'image', 'story', 'carousel'] },
-  { name: 'google', displayName: 'Facebook', logo: 'FB', color: '#1877F2', capabilities: ['video', 'image', 'carousel'] },
+  { name: 'shopee', displayName: 'Shopee', logo: 'SH', color: '#EE4D2D', capabilities: ['image', 'carousel'] },
+  { name: 'lazada', displayName: 'Lazada', logo: 'LZ', color: '#0F146D', capabilities: ['image', 'carousel'] },
   { name: 'line', displayName: 'LINE', logo: 'LN', color: '#00B900', capabilities: ['image', 'message'] },
+  { name: 'lemon8', displayName: 'Lemon8', logo: 'L8', color: '#FFB800', capabilities: ['image', 'carousel'] },
 ];

@@ -13,8 +13,6 @@ interface ChartDataPoint {
   lemon8: number;
   shopee: number;
   lazada: number;
-  instagram: number;
-  facebook: number;
   roas: number;
 }
 

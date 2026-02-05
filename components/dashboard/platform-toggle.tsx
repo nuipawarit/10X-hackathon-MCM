@@ -7,7 +7,7 @@ interface PlatformToggleProps {
   onToggle: (platform: string) => void;
 }
 
-const allPlatforms = ['meta', 'google', 'tiktok', 'line', 'lemon8', 'shopee', 'lazada', 'instagram', 'facebook'];
+const allPlatforms = ['meta', 'google', 'tiktok', 'shopee', 'lazada', 'line', 'lemon8'];
 
 export function PlatformToggle({ activePlatforms, onToggle }: PlatformToggleProps) {
   return (

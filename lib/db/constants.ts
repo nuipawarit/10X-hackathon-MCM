@@ -1,9 +1,7 @@
 export const PLATFORM_COLORS: Record<string, { color: string; logo: string; displayName: string }> = {
   tiktok: { color: '#000000', logo: 'TT', displayName: 'TikTok' },
   lemon8: { color: '#FFB800', logo: 'L8', displayName: 'Lemon8' },
-  instagram: { color: '#E1306C', logo: 'IG', displayName: 'Instagram' },
-  facebook: { color: '#1877F2', logo: 'FB', displayName: 'Facebook' },
-  meta: { color: '#1877F2', logo: 'FB', displayName: 'Meta' },
+  meta: { color: '#1877F2', logo: 'M', displayName: 'Meta' },
   google: { color: '#EA4335', logo: 'G', displayName: 'Google Ads' },
   line: { color: '#00C300', logo: 'LN', displayName: 'LINE LAP' },
   shopee: { color: '#EE4D2D', logo: 'SH', displayName: 'Shopee' },
